@@ -33,7 +33,7 @@ export function CourseCard({ course, color, inCart, pending, onAdd, onRemove }: 
       <Pressable
         onPress={() => (inCart ? onRemove(course.id) : onAdd(course.id))}
         disabled={pending}
-        className={`rounded-lg px-3 py-2 disabled:opacity-50 ${inCart ? 'bg-red-50 dark:bg-red-950' : 'bg-neutral-900 dark:bg-neutral-100'}`}
+        className={`rounded-lg px-3 py-2.5 disabled:opacity-50 ${inCart ? 'bg-red-50 dark:bg-red-950' : 'bg-neutral-900 dark:bg-neutral-100'}`}
       >
         <Text className={`text-xs font-medium ${inCart ? 'text-red-700 dark:text-red-300' : 'text-white dark:text-neutral-900'}`}>
           {inCart ? 'Remove' : 'Add'}

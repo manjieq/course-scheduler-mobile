@@ -54,7 +54,7 @@ export function LoadoutCard({ loadout, courses, maxCredits, colorFor, showSchedu
           </Text>
         ))}
       </View>
-      {showSchedule && <ScheduleGrid courses={courses} colorFor={colorFor} conflicts={conflicts} compact />}
+      {showSchedule && <ScheduleGrid courses={courses} colorFor={colorFor} conflicts={conflicts} />}
       {actions}
     </View>
   );

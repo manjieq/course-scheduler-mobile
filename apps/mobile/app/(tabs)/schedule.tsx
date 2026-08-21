@@ -83,8 +83,6 @@ export default function ScheduleScreen() {
 
   return (
     <ScrollView className="flex-1 bg-white p-4 dark:bg-neutral-950" contentContainerClassName="gap-4 pb-10">
-      <Text className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Schedule</Text>
-
       {isLoadingCourses ? (
         <ActivityIndicator />
       ) : (

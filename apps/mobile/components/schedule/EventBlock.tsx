@@ -26,10 +26,10 @@ export function EventBlock({ course, slot, color, conflicted, position }: EventB
       className={`absolute overflow-hidden rounded-md px-1.5 py-1 ${conflicted ? 'border-2 border-red-500' : ''}`}
       style={{ ...position, backgroundColor: color }}
     >
-      <Text style={{ color: textColor }} className="text-[10px] font-semibold" numberOfLines={1}>
+      <Text style={{ color: textColor }} className="text-[11px] font-semibold" numberOfLines={1}>
         {course.code}
       </Text>
-      <Text style={{ color: textColor }} className="text-[9px]" numberOfLines={1}>
+      <Text style={{ color: textColor }} className="text-[10px]" numberOfLines={1}>
         {formatTime(slot.start)}-{formatTime(slot.end)}
       </Text>
     </View>

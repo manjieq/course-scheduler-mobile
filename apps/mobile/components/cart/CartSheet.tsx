@@ -110,8 +110,12 @@ export function CartSheet({
                       {course.name}
                       {!included && ' (excluded)'}
                     </Text>
-                    <Pressable onPress={() => onRemove(course.id)} hitSlop={8}>
-                      <Text className="text-xs text-red-600 dark:text-red-400">Remove</Text>
+                    <Pressable
+                      onPress={() => onRemove(course.id)}
+                      hitSlop={8}
+                      className="h-6 w-6 items-center justify-center rounded-full bg-red-50 dark:bg-red-950"
+                    >
+                      <Text className="text-xs font-semibold text-red-600 dark:text-red-400">✕</Text>
                     </Pressable>
                   </Pressable>
                 );
