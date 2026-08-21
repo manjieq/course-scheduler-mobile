@@ -19,9 +19,14 @@ create table universities (
   status text not null default 'pending_review' check (status in ('pending_review', 'approved', 'merged')),
   merged_into_id uuid references universities(id),
   created_by uuid references auth.users(id),
-  created_at timestamptz not null default now(),
-  unique (lower(name))
+  created_at timestamptz not null default now()
 );
+
+-- Expression-based uniqueness (case-insensitive name) can't be an inline
+-- table constraint in Postgres — `unique (lower(name))` is a syntax error
+-- because UNIQUE only accepts column lists, not expressions. A unique
+-- index is the equivalent for an expression.
+create unique index universities_name_lower_idx on universities (lower(name));
 
 create table departments (
   id uuid primary key default gen_random_uuid(),
