@@ -1,0 +1,7 @@
+{
+  "name": "api",
+  "private": true,
+  "scripts": {
+    "lint": "echo \"(Edge Functions land in Phase 4 - nothing to lint yet)\""
+  }
+}
