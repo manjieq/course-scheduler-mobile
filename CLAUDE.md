@@ -102,7 +102,11 @@ deletes or restructures it; this is a brand-new, separate project by design
    port `packages/shared-types` with unit tests. ✅ done.
 2. **Supabase schema + Auth + onboarding** — provision
    `apps/api/supabase/migrations/0001_init.sql`, wire Auth, build the
-   university search/self-serve-add screen and its routing gate.
+   university search/self-serve-add screen and its routing gate. ✅ done
+   (email + password auth rather than magic-link/OTP — sidesteps needing
+   custom SMTP configured just to test locally; `0002_grants.sql` adds
+   base table grants this Supabase project didn't come with by default;
+   see git history for both if either needs revisiting).
 3. **Port Courses/Cart/Schedule/Loadouts** onto Postgres-backed data,
    using small hand-seeded dev fixture courses (incl. one deliberately
    overlapping pair, carrying forward the prototype's convention) since
