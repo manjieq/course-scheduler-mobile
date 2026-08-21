@@ -1,24 +1,165 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 
-// Phase 1 placeholder. Phase 2 replaces this with: a searchable list of
-// existing `universities` rows, a self-serve "add my university" path
-// (inserted as status='pending_review'), and a submit that writes
-// profiles.university_id + profiles.onboarding_completed_at before
-// redirecting into (tabs). See CLAUDE.md's Gap 2 section — this screen is
-// mandatory and blocks every other screen until it completes.
+import { useAuth } from '../../lib/auth-context';
+import { supabase } from '../../lib/supabase';
+
+interface UniversityRow {
+  id: string;
+  name: string;
+  short_name: string;
+  status: 'pending_review' | 'approved' | 'merged';
+}
+
+// Mandatory pre-app screen (see CLAUDE.md's Gap 2): search the shared
+// `universities` table, or self-serve-add one that isn't listed yet (goes
+// in as status='pending_review' per the RLS insert policy — usable by this
+// user immediately, excluded from cross-user catalog reuse until approved).
+// Confirm writes profiles.university_id + onboarding_completed_at, which is
+// what the root layout's routing gate checks to let the user into (tabs).
 export default function UniversityOnboardingScreen() {
+  const { session, refreshProfile } = useAuth();
+  const [query, setQuery] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const {
+    data: universities,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ['universities', query],
+    queryFn: async (): Promise<UniversityRow[]> => {
+      let request = supabase.from('universities').select('id, name, short_name, status').order('name').limit(25);
+      if (query.trim()) {
+        request = request.or(`name.ilike.%${query.trim()}%,short_name.ilike.%${query.trim()}%`);
+      }
+      const { data, error: queryError } = await request;
+      if (queryError) throw queryError;
+      return data ?? [];
+    },
+  });
+
+  const trimmedQuery = query.trim();
+  const hasExactMatch = useMemo(
+    () => (universities ?? []).some((u) => u.name.toLowerCase() === trimmedQuery.toLowerCase()),
+    [universities, trimmedQuery]
+  );
+
+  async function completeOnboarding(universityId: string) {
+    if (!session) return;
+    setIsSaving(true);
+    setError(null);
+
+    const { error: upsertError } = await supabase.from('profiles').upsert({
+      id: session.user.id,
+      university_id: universityId,
+      onboarding_completed_at: new Date().toISOString(),
+    });
+
+    setIsSaving(false);
+    if (upsertError) {
+      setError(upsertError.message);
+      return;
+    }
+    // No explicit navigation — the routing gate in app/_layout.tsx re-reads
+    // the profile and redirects into (tabs) once onboarding_completed_at is set.
+    await refreshProfile();
+  }
+
+  async function handleSelectExisting(university: UniversityRow) {
+    setSelectedId(university.id);
+    await completeOnboarding(university.id);
+  }
+
+  async function handleAddNew() {
+    if (!session || !trimmedQuery) return;
+    setIsSaving(true);
+    setError(null);
+
+    const { data, error: insertError } = await supabase
+      .from('universities')
+      .insert({
+        name: trimmedQuery,
+        short_name: trimmedQuery.slice(0, 12),
+        created_by: session.user.id,
+      })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      setIsSaving(false);
+      setError(insertError.message);
+      return;
+    }
+
+    setSelectedId(data.id);
+    await completeOnboarding(data.id);
+    refetch();
+  }
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Which university do you attend?</Text>
-      <Text style={styles.body}>
-        University search/add UI lands in Phase 2, alongside Supabase Auth.
+    <View className="flex-1 gap-4 bg-white p-6 pt-16 dark:bg-neutral-950">
+      <Text className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+        Which university do you attend?
       </Text>
+      <Text className="text-sm text-neutral-500 dark:text-neutral-400">
+        Search for your school, or add it if it&apos;s not listed yet.
+      </Text>
+
+      <TextInput
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search universities…"
+        placeholderTextColor="#9ca3af"
+        autoCapitalize="words"
+        className="w-full rounded-xl border border-neutral-300 px-4 py-3 text-base text-neutral-900 dark:border-neutral-700 dark:text-neutral-50"
+      />
+
+      {error ? <Text className="text-sm text-red-600 dark:text-red-400">{error}</Text> : null}
+
+      {isLoading ? (
+        <ActivityIndicator />
+      ) : (
+        <FlatList
+          data={universities}
+          keyExtractor={(item) => item.id}
+          className="flex-1"
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => handleSelectExisting(item)}
+              disabled={isSaving}
+              className="flex-row items-center justify-between border-b border-neutral-200 py-3 disabled:opacity-50 dark:border-neutral-800"
+            >
+              <Text className="text-base text-neutral-900 dark:text-neutral-50">{item.name}</Text>
+              {isSaving && selectedId === item.id ? <ActivityIndicator size="small" /> : null}
+            </Pressable>
+          )}
+          ListEmptyComponent={
+            trimmedQuery ? (
+              <Text className="py-3 text-sm text-neutral-500 dark:text-neutral-400">No matches.</Text>
+            ) : null
+          }
+        />
+      )}
+
+      {trimmedQuery && !hasExactMatch ? (
+        <Pressable
+          onPress={handleAddNew}
+          disabled={isSaving}
+          className="w-full items-center rounded-xl bg-neutral-900 py-3 disabled:opacity-50 dark:bg-neutral-100"
+        >
+          {isSaving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text className="text-base font-medium text-white dark:text-neutral-900">
+              Add &quot;{trimmedQuery}&quot; as a new university
+            </Text>
+          )}
+        </Pressable>
+      ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
-  title: { fontSize: 20, fontWeight: '600', textAlign: 'center' },
-  body: { fontSize: 14, textAlign: 'center', opacity: 0.7 },
-});
