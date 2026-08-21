@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.turbo/
+.expo/
+.env
+.env.local
+*.log
+
+# Expo / EAS
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/web-build/
+apps/mobile/.env*
