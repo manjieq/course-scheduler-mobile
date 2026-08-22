@@ -19,9 +19,13 @@ deletes or restructures it; this is a brand-new, separate project by design
 - **Backend**: Supabase (Postgres, Auth, Storage, Edge Functions).
 - **AI**: a vision-capable LLM with structured/JSON output for course
   extraction, behind a swappable provider interface in
-  `apps/api/functions/_shared` — never hardcode to one provider, and never
-  bundle the API key client-side (it lives in Supabase project secrets,
-  used only inside Edge Functions).
+  `apps/api/supabase/functions/_shared` — never hardcode to one provider,
+  and never bundle the API key client-side (it lives in Supabase project
+  secrets, used only inside Edge Functions). Functions live under
+  `apps/api/supabase/functions/`, not `apps/api/functions/` — the Supabase
+  CLI's `functions deploy` has a fixed convention (source must sit under
+  `supabase/functions/` next to `supabase/config.toml`), so that's not
+  optional the way most of this repo's layout is.
 - **Monorepo**: pnpm workspaces + Turborepo.
 - **Mobile styling**: NativeWind (Tailwind-style utility classes) — chosen
   as the closest mental model to the old repo's CSS Modules authoring
@@ -130,10 +134,51 @@ deletes or restructures it; this is a brand-new, separate project by design
    credit-overcap warning).
 4. **AI extraction pipeline** (Scan + Chat) — swappable provider
    interface, server-side university resolution, shared confirm/edit
-   review screen.
+   review screen. ✅ done (provider interface + a Gemini implementation as
+   the first concrete provider — picked for its genuine free tier, unlike
+   Anthropic/OpenAI's one-time trial credit only; `extract-course-scan` and
+   `extract-course-chat` return unsaved drafts, `confirm-course` — added
+   beyond the Phase 1 scaffold's two named functions — is the only thing
+   that writes to `courses`, upserting on `(university_id, department_id,
+   code)` with a `course_corrections` audit trail on edits to an existing
+   row. `app/confirm-courses.tsx` is the shared review/edit screen both
+   input paths land on; category is always a manual pick there since a
+   listing photo doesn't reveal major-core vs. general-elective for a given
+   student. Edge Functions live under `apps/api/supabase/functions/`, not
+   the scaffold's original `apps/api/functions/` — moved to match the
+   Supabase CLI's fixed `functions deploy` convention; see this tech
+   stack's AI bullet. Real-device testing surfaced and fixed several
+   things beyond the core pipeline: Gemini 3.x's default "medium" thinking
+   added latency this task doesn't need (`thinkingLevel: 'low'` + a 35s
+   per-attempt timeout + one retry on 429/503 in `_shared/gemini-provider.ts`);
+   a course with no extractable meeting time (async/TBD) used to fail
+   *the entire batch's* validation over just itself (`timeSlots` is no
+   longer `.min(1)`); and two gaps that predate Phase 4 but only bite a
+   self-serve (non-seeded) university — no way to ever add a department
+   (`0005`/`0006` add a self-serve insert policy + grant, `courses.tsx`'s
+   "+ Add a department" form), and `universities.max_credits_per_semester`
+   silently defaulting to 18 with no way to correct it (`0007`/`0008` let
+   the university's own user edit its cap and short name while still
+   `pending_review`, surfaced in the Cart sheet — see the note under Phase
+   5 about that not really being the right long-term home for it). Also
+   fixed while testing on a real device, unrelated to AI extraction itself:
+   `ScheduleGrid`'s hour range and day-column width are now both computed
+   from actual available space (see `computeScheduleHourRange` in
+   `packages/shared-types/src/time.ts`) instead of a fixed 8am-5pm /
+   fixed-width layout, so a night class isn't cut off and all 5 days fit
+   without scrolling sideways on a typical phone. See git history for the
+   fuller debugging trail — a Gemini "model overloaded" 503 and a genuine
+   160s+ platform-timeout hang look identical from the client's error
+   message alone if you're not also checking the Edge Function's own logs).
 5. **Shared catalog + caching** — write confirmed courses keyed by
    `(university_id, department_id, code)`; check cache before running
-   full extraction where possible.
+   full extraction where possible. Also now scoped to include: a **Settings
+   screen** (a header icon button opening a modal, like Scan/Chat) — Sign
+   out (currently sitting in `courses.tsx` as an explicitly-labeled
+   temporary Phase 2 affordance), the university credit-cap/short-name
+   self-serve edits (moved out of the Cart sheet, which should stay
+   focused on the actual course selection), and a spot for Phase 6's
+   theming toggle once that exists.
 6. **Polish** — theming, empty/error states, comparison-view refinement.
 7. **Testing hardening + EAS build prep**.
 
