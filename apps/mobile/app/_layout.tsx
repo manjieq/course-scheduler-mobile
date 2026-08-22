@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '../lib/auth-context';
+import { ExtractionReviewProvider } from '../lib/extraction-review-context';
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,10 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="scan" options={{ presentation: 'modal', headerShown: true, title: 'Scan a course' }} />
       <Stack.Screen name="chat" options={{ presentation: 'modal', headerShown: true, title: 'Describe a course' }} />
+      <Stack.Screen
+        name="confirm-courses"
+        options={{ presentation: 'modal', headerShown: true, title: 'Confirm courses' }}
+      />
       <Stack.Screen name="loadout-compare" options={{ presentation: 'modal', headerShown: false }} />
     </Stack>
   );
@@ -80,16 +85,20 @@ function RootLayoutNav() {
 //   (onboarding)    — mandatory pre-app university selection
 //   (tabs)          — Courses/Schedule/Loadouts, ported from the prototype
 //   scan, chat      — AI extraction entry points (Phase 4)
+//   confirm-courses — shared review/edit screen both scan and chat land on
+//                     (Phase 4) — see lib/extraction-review-context.tsx
 //   loadout-compare — landscape side-by-side loadout comparison (see the
 //                     Loadouts tab's "View side by side")
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <SafeAreaProvider>
-          <StatusBar style="auto" />
-          <RootLayoutNav />
-        </SafeAreaProvider>
+        <ExtractionReviewProvider>
+          <SafeAreaProvider>
+            <StatusBar style="auto" />
+            <RootLayoutNav />
+          </SafeAreaProvider>
+        </ExtractionReviewProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

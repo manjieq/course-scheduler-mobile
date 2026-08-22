@@ -1,5 +1,5 @@
-import { useSegments } from 'expo-router';
-import { Text, View } from 'react-native';
+import { useRouter, useSegments } from 'expo-router';
+import { Pressable, Text, View } from 'react-native';
 
 import { CartHeaderButton } from '../courses/CartHeaderButton';
 
@@ -21,6 +21,7 @@ interface AppHeaderProps {
 // cart is reachable from Schedule and Loadouts too, not just Courses.
 export function AppHeader({ universityShortName, cartCount, onOpenCart }: AppHeaderProps) {
   const segments = useSegments();
+  const router = useRouter();
   const activeTab = segments[segments.length - 1];
   const title = TAB_TITLES[activeTab] ?? 'Course Scheduler';
 
@@ -34,7 +35,25 @@ export function AppHeader({ universityShortName, cartCount, onOpenCart }: AppHea
         )}
         <Text className="text-lg font-bold text-neutral-900 dark:text-neutral-50">{title}</Text>
       </View>
-      <CartHeaderButton count={cartCount} onPress={onOpenCart} />
+      <View className="flex-row items-center">
+        {/* Phase 4: AI extraction entry points — scan a photo or describe a
+            class, both landing on the shared confirm/edit review screen. */}
+        <Pressable
+          onPress={() => router.push('/scan')}
+          hitSlop={8}
+          className="mr-2 rounded-full border border-neutral-300 px-3 py-1.5 dark:border-neutral-700"
+        >
+          <Text className="text-sm">📷</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push('/chat')}
+          hitSlop={8}
+          className="mr-2 rounded-full border border-neutral-300 px-3 py-1.5 dark:border-neutral-700"
+        >
+          <Text className="text-sm">💬</Text>
+        </Pressable>
+        <CartHeaderButton count={cartCount} onPress={onOpenCart} />
+      </View>
     </View>
   );
 }
