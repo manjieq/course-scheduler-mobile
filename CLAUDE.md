@@ -110,7 +110,24 @@ deletes or restructures it; this is a brand-new, separate project by design
 3. **Port Courses/Cart/Schedule/Loadouts** onto Postgres-backed data,
    using small hand-seeded dev fixture courses (incl. one deliberately
    overlapping pair, carrying forward the prototype's convention) since
-   AI extraction doesn't exist yet.
+   AI extraction doesn't exist yet. ✅ done (the initial port landed the
+   four screens on Postgres-backed data; a follow-up layout-redesign
+   pass then reworked the navigation based on user feedback that the
+   original layout made toggling a course's included state — needed to
+   build a new loadout — require switching to the Courses tab to reach
+   the Cart sheet, the only place that write existed. Fix: a persistent
+   header with the cart reachable from every tab instead of only
+   Courses; Loadouts split into its own tab instead of living at the
+   bottom of Schedule, with its save form moved to the Schedule tab
+   next to the schedule it saves; and a tap-to-toggle included-courses
+   chip strip on Schedule so a course can be unticked without switching
+   tabs or opening the cart at all. Also added a landscape side-by-side
+   loadout-comparison view. Designed first as a Claude Design canvas
+   mockup, iterated on with the user, then implemented; see git history
+   around the "layout redesign" commits for the mockup link and the
+   device-testing fixups that followed — a stale-EventBlock-text bug on
+   the schedule grid, and extra dev-seed courses to exercise the
+   credit-overcap warning).
 4. **AI extraction pipeline** (Scan + Chat) — swappable provider
    interface, server-side university resolution, shared confirm/edit
    review screen.
