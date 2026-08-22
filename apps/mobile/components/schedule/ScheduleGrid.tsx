@@ -1,27 +1,45 @@
-import { ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
 
-import { DAYS_OF_WEEK, DAY_LABELS, layoutOverlaps, toMinutes } from '@course-scheduler/shared-types';
+import { computeScheduleHourRange, DAYS_OF_WEEK, DAY_LABELS, layoutOverlaps, toMinutes } from '@course-scheduler/shared-types';
 import type { ConflictPair, Course, LayoutInput } from '@course-scheduler/shared-types';
 
 import { EventBlock } from './EventBlock';
 
-// Ported from the prototype's ScheduleGrid.tsx. The web version was never
-// actually flex-shrunk to fit its container — its CSS grid uses
-// `minmax(110px, 1fr)` per day column inside an `overflow-x: auto` wrapper,
-// staying comfortably readable and just scrolling sideways instead. The
-// first mobile port missed that (flex-1 columns dividing phone width into
-// ~60px slivers); this restores the same horizontal-scroll-with-a-floor
-// pattern instead of inventing a mobile-only layout.
-const START_HOUR = 8;
-const END_HOUR = 17;
+// Ported from the prototype's ScheduleGrid.tsx. The original mobile port's
+// first attempt at fitting all 5 days on screen used unbounded flex-1
+// columns, which on a phone divided into unreadable ~60px slivers — the fix
+// at the time was a fixed-width, horizontal-scroll-with-a-floor pattern
+// instead (matching the web version's own `minmax(110px, 1fr)` + overflow
+// approach). This version keeps that floor (MIN_DAY_COLUMN_WIDTH) but
+// isn't fixed above it: the grid measures its own available width (see the
+// onLayout below) and shrinks each day column — down to that floor, same
+// idea as MIN_HOUR_PX — to try to fit all 5 days without scrolling, rather
+// than always defaulting to the widest, safest size and letting the user
+// scroll sideways even when there's room to fit.
 const GUTTER_WIDTH = 48;
-const DAY_COLUMN_WIDTH = 104;
-const HOUR_PX = 48;
+const DEFAULT_DAY_COLUMN_WIDTH = 104;
+const MIN_DAY_COLUMN_WIDTH = 64;
+// onLayout reports the root View's border-box width, but its own border
+// (and the rounded corners clipped by overflow-hidden) eat a couple of
+// pixels the raw measurement doesn't account for — without this, columns
+// sized to exactly fill the measured width could end up a hair too wide
+// and get visibly nicked at the edge.
+const EDGE_SAFETY_MARGIN = 8;
+const DEFAULT_HOUR_PX = 48;
+const MIN_HOUR_PX = 28;
+// Rough height of the day-label header row (py-1.5 padding + an 11px line
+// + its border) — subtracted from maxBodyHeight below so the shrink math
+// is against the whole grid's footprint, matching what the caller actually
+// measured as available space for the ScheduleGrid component as a whole.
+const HEADER_ROW_HEIGHT = 28;
 
 interface ScheduleGridProps {
   courses: Course[];
   colorFor: (courseId: string) => string;
   conflicts?: ConflictPair[];
+  /** Available vertical space for the whole grid component (header row included), if known — see app/(tabs)/schedule.tsx. Omit to always use DEFAULT_HOUR_PX. */
+  maxBodyHeight?: number;
 }
 
 interface EventEntry {
@@ -29,7 +47,11 @@ interface EventEntry {
   slot: Course['schedule'][number];
 }
 
-export function ScheduleGrid({ courses, colorFor, conflicts = [] }: ScheduleGridProps) {
+export function ScheduleGrid({ courses, colorFor, conflicts = [], maxBodyHeight }: ScheduleGridProps) {
+  // Hooks first, before the empty-state early return below — rules of hooks.
+  const [containerWidth, setContainerWidth] = useState(0);
+  const handleContainerLayout = (e: LayoutChangeEvent) => setContainerWidth(e.nativeEvent.layout.width);
+
   if (courses.length === 0) {
     return (
       <View className="items-center justify-center rounded-xl border border-dashed border-neutral-300 p-6 dark:border-neutral-700">
@@ -40,15 +62,39 @@ export function ScheduleGrid({ courses, colorFor, conflicts = [] }: ScheduleGrid
     );
   }
 
+  const { startHour: START_HOUR, endHour: END_HOUR } = computeScheduleHourRange(courses);
   const totalHours = END_HOUR - START_HOUR;
+  const naturalBodyHeight = totalHours * DEFAULT_HOUR_PX;
+  const availableBodyHeight = maxBodyHeight ? Math.max(maxBodyHeight - HEADER_ROW_HEIGHT, 0) : undefined;
+  const HOUR_PX =
+    availableBodyHeight && naturalBodyHeight > availableBodyHeight
+      ? Math.max(MIN_HOUR_PX, Math.floor(availableBodyHeight / totalHours))
+      : DEFAULT_HOUR_PX;
   const pxPerMin = HOUR_PX / 60;
   const bodyHeight = totalHours * HOUR_PX;
+
+  // containerWidth is this component's own root View's measured width (not
+  // the inner horizontal ScrollView's content width) — it reflects exactly
+  // what the parent actually gives this component to work with, so no
+  // padding/margin guesswork is needed the way maxBodyHeight's caller has
+  // to do across sibling elements above it.
+  const naturalColumnsWidth = DEFAULT_DAY_COLUMN_WIDTH * DAYS_OF_WEEK.length;
+  const availableColumnsWidth = containerWidth
+    ? Math.max(containerWidth - GUTTER_WIDTH - EDGE_SAFETY_MARGIN, 0)
+    : undefined;
+  const DAY_COLUMN_WIDTH =
+    availableColumnsWidth && naturalColumnsWidth > availableColumnsWidth
+      ? Math.max(MIN_DAY_COLUMN_WIDTH, Math.floor(availableColumnsWidth / DAYS_OF_WEEK.length))
+      : DEFAULT_DAY_COLUMN_WIDTH;
 
   const isConflicted = (slot: Course['schedule'][number]) =>
     conflicts.some((c) => c.slotA === slot || c.slotB === slot);
 
   return (
-    <View className="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">
+    <View
+      className="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800"
+      onLayout={handleContainerLayout}
+    >
       <ScrollView horizontal showsHorizontalScrollIndicator>
         <View>
           <View className="flex-row border-b border-neutral-200 dark:border-neutral-800">

@@ -54,3 +54,37 @@ export function findConflicts(courses: Course[]): ConflictPair[] {
 export function courseHasConflict(course: Course, conflicts: ConflictPair[]): boolean {
   return conflicts.some((c) => c.courseA.id === course.id || c.courseB.id === course.id);
 }
+
+export interface ScheduleHourRange {
+  startHour: number;
+  endHour: number;
+}
+
+/**
+ * Derives the hour range a weekly schedule grid should render, so a night
+ * class isn't cut off at a fixed 5pm boundary. Stays at the given defaults
+ * (8am-5pm) whenever every course fits inside them — the padding only
+ * kicks in once something actually runs later, rather than always adding
+ * dead space to the common case.
+ */
+export function computeScheduleHourRange(
+  courses: Course[],
+  options: { defaultStartHour?: number; defaultEndHour?: number; endPaddingHours?: number } = {}
+): ScheduleHourRange {
+  const { defaultStartHour = 8, defaultEndHour = 17, endPaddingHours = 1 } = options;
+
+  let earliestStartMin = defaultStartHour * 60;
+  let latestEndMin = defaultEndHour * 60;
+  for (const course of courses) {
+    for (const slot of course.schedule) {
+      earliestStartMin = Math.min(earliestStartMin, toMinutes(slot.start));
+      latestEndMin = Math.max(latestEndMin, toMinutes(slot.end));
+    }
+  }
+
+  const startHour = Math.floor(earliestStartMin / 60);
+  const rawEndHour = Math.ceil(latestEndMin / 60);
+  const endHour = rawEndHour <= defaultEndHour ? defaultEndHour : rawEndHour + endPaddingHours;
+
+  return { startHour, endHour };
+}

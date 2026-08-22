@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { courseHasConflict, findConflicts, formatTime, slotsOverlap, toMinutes } from './time';
+import { computeScheduleHourRange, courseHasConflict, findConflicts, formatTime, slotsOverlap, toMinutes } from './time';
 import type { Course } from './models';
 
 function course(id: string, code: string, schedule: Course['schedule']): Course {
@@ -62,5 +62,33 @@ describe('findConflicts / courseHasConflict', () => {
     expect(courseHasConflict(a, conflicts)).toBe(true);
     expect(courseHasConflict(b, conflicts)).toBe(true);
     expect(courseHasConflict(c, conflicts)).toBe(false);
+  });
+});
+
+describe('computeScheduleHourRange', () => {
+  it('stays at the defaults when every course fits inside them', () => {
+    const courses = [course('a', 'CS101', [{ day: 'MON', start: '09:00', end: '10:00' }])];
+    expect(computeScheduleHourRange(courses)).toEqual({ startHour: 8, endHour: 17 });
+  });
+
+  it('returns the defaults for an empty course list', () => {
+    expect(computeScheduleHourRange([])).toEqual({ startHour: 8, endHour: 17 });
+  });
+
+  it('extends the end hour, plus padding, for a night class past the default', () => {
+    const courses = [course('a', 'CS101', [{ day: 'WED', start: '17:00', end: '18:00' }])];
+    // raw end hour is 18 (ceil of 18:00); +1 hour of padding since it exceeded the default.
+    expect(computeScheduleHourRange(courses)).toEqual({ startHour: 8, endHour: 19 });
+  });
+
+  it('extends the start hour for a class earlier than the default, without padding it', () => {
+    const courses = [course('a', 'CS101', [{ day: 'MON', start: '07:00', end: '08:00' }])];
+    expect(computeScheduleHourRange(courses)).toEqual({ startHour: 7, endHour: 17 });
+  });
+
+  it('rounds a non-hour-aligned end time up before padding', () => {
+    const courses = [course('a', 'CS101', [{ day: 'FRI', start: '17:00', end: '17:30' }])];
+    // ceil(17:30) = 18, +1 padding = 19.
+    expect(computeScheduleHourRange(courses)).toEqual({ startHour: 8, endHour: 19 });
   });
 });

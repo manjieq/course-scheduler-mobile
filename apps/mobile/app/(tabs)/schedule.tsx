@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
 
 import { findConflicts, sumCredits } from '@course-scheduler/shared-types';
 
@@ -31,6 +31,19 @@ export default function ScheduleScreen() {
   const { data: loadouts = [] } = useLoadouts(userId, departmentId);
   const { saveLoadout } = useLoadoutMutations(userId, universityId, departmentId, scheduleId);
 
+  // Measured (not estimated) so the grid can shrink to fit whatever's
+  // actually left after the strip/banner above it, without hardcoding
+  // header/tab-bar heights — this screen's own root View already excludes
+  // those, since they're rendered by the parent Tabs layout, not here.
+  const [screenHeight, setScreenHeight] = useState(0);
+  const [topSectionHeight, setTopSectionHeight] = useState(0);
+  const handleScreenLayout = (e: LayoutChangeEvent) => setScreenHeight(e.nativeEvent.layout.height);
+  const handleTopSectionLayout = (e: LayoutChangeEvent) => setTopSectionHeight(e.nativeEvent.layout.height);
+  // Small bottom margin so the grid doesn't butt right up against the
+  // screen edge even when it's using every pixel it can get.
+  const gridMaxHeight =
+    screenHeight && topSectionHeight ? Math.max(screenHeight - topSectionHeight - 16, 0) : undefined;
+
   const colorFor = (courseId: string) => colorMap.get(courseId) ?? '#999999';
 
   const cartCourseIds = useMemo(() => new Set(scheduleCourses.map((r) => r.course_id)), [scheduleCourses]);
@@ -54,41 +67,55 @@ export default function ScheduleScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-white p-4 dark:bg-neutral-950" contentContainerClassName="gap-4 pb-10">
-      <IncludedCoursesStrip
-        cartCourses={cartCourses}
-        includedIds={includedIds}
-        colorFor={colorFor}
-        onToggle={(courseId, included) => toggleIncluded.mutate({ courseId, included })}
-      />
-
-      {isLoadingCourses ? (
-        <ActivityIndicator />
-      ) : (
-        <>
-          <ConflictWarningBanner conflicts={conflicts} />
-          <ScheduleGrid courses={includedCourses} colorFor={colorFor} conflicts={conflicts} />
-        </>
-      )}
-
-      <View>
-        <Text className="mb-1 text-base font-semibold text-neutral-900 dark:text-neutral-50">Save as a loadout</Text>
-        <Text className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
-          Save this course combination — browse and compare it against others on the Loadouts tab.
-        </Text>
-        <LoadoutSaveForm
-          disabled={includedCourses.length === 0}
-          isSaving={saveLoadout.isPending}
-          existingCount={loadouts.length}
-          onSave={(name) =>
-            saveLoadout.mutate({
-              name,
-              courseIds: includedCourses.map((c) => c.id),
-              totalCredits: sumCredits(includedCourses),
-            })
-          }
+    <View className="flex-1 bg-white dark:bg-neutral-950" onLayout={handleScreenLayout}>
+      <View className="gap-3 p-4 pb-2" onLayout={handleTopSectionLayout}>
+        <IncludedCoursesStrip
+          cartCourses={cartCourses}
+          includedIds={includedIds}
+          colorFor={colorFor}
+          onToggle={(courseId, included) => toggleIncluded.mutate({ courseId, included })}
         />
+        {!isLoadingCourses && <ConflictWarningBanner conflicts={conflicts} />}
       </View>
-    </ScrollView>
+
+      {/* The grid itself is sized (via gridMaxHeight) to fit whatever's left
+          on screen after the section above — everything below it here
+          (namely "Save as a loadout") is what's allowed to require
+          scrolling to reach, per the point of measuring in the first
+          place. */}
+      <ScrollView className="px-4" contentContainerClassName="gap-4 pb-10">
+        {isLoadingCourses ? (
+          <ActivityIndicator />
+        ) : (
+          <ScheduleGrid
+            courses={includedCourses}
+            colorFor={colorFor}
+            conflicts={conflicts}
+            maxBodyHeight={gridMaxHeight}
+          />
+        )}
+
+        <View>
+          <Text className="mb-1 text-base font-semibold text-neutral-900 dark:text-neutral-50">
+            Save as a loadout
+          </Text>
+          <Text className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
+            Save this course combination — browse and compare it against others on the Loadouts tab.
+          </Text>
+          <LoadoutSaveForm
+            disabled={includedCourses.length === 0}
+            isSaving={saveLoadout.isPending}
+            existingCount={loadouts.length}
+            onSave={(name) =>
+              saveLoadout.mutate({
+                name,
+                courseIds: includedCourses.map((c) => c.id),
+                totalCredits: sumCredits(includedCourses),
+              })
+            }
+          />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
