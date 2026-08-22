@@ -31,7 +31,7 @@ export function LoadoutList({
   if (loadouts.length === 0) {
     return (
       <Text className="text-sm text-neutral-500 dark:text-neutral-400">
-        No loadouts saved yet. Add courses in the Courses tab, then save this schedule here.
+        No loadouts saved yet. Add courses in the Courses tab, then save your schedule from the Schedule tab.
       </Text>
     );
   }

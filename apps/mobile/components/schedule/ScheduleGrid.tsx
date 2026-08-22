@@ -103,7 +103,14 @@ export function ScheduleGrid({ courses, colorFor, conflicts = [] }: ScheduleGrid
                     const leftPct = item.column * widthPct;
                     return (
                       <EventBlock
-                        key={item.key}
+                        // column/columnCount ride along in the key so
+                        // removing an overlapping sibling forces a fresh
+                        // mount of the surviving block instead of an
+                        // in-place update — otherwise the absolutely
+                        // positioned, percentage-width block can be left
+                        // showing stale (blank) text after its width
+                        // jumps from e.g. 50% to 100%.
+                        key={`${item.key}-${item.column}-${item.columnCount}`}
                         course={item.data.course}
                         slot={item.data.slot}
                         color={colorFor(item.data.course.id)}

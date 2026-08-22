@@ -1,25 +1,20 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { sumCredits } from '@course-scheduler/shared-types';
-
-import { IncludedCoursesStrip } from '../../components/schedule/IncludedCoursesStrip';
 import { LoadoutComparisonView } from '../../components/loadouts/LoadoutComparisonView';
 import { LoadoutList } from '../../components/loadouts/LoadoutList';
-import { LoadoutSaveForm } from '../../components/loadouts/LoadoutSaveForm';
 import { useAuth } from '../../lib/auth-context';
 import { useDepartmentCourses, useUniversity } from '../../lib/catalog';
 import type { LoadoutRow } from '../../lib/loadouts';
 import { useLoadoutMutations, useLoadouts } from '../../lib/loadouts';
-import { useCartMutations, useSchedule, useScheduleCourses } from '../../lib/schedule-data';
+import { useSchedule } from '../../lib/schedule-data';
 
-// Loadouts' own tab — previously this whole section was bolted onto the
-// bottom of Schedule (see CLAUDE.md's plan history for the layout-redesign
-// mockup this implements). Ported from that section unchanged apart from
-// the new IncludedCoursesStrip (a course can be unticked right here now)
-// and the "View side by side" affordance, which hands off to the dedicated
-// app/loadout-compare.tsx route for a landscape comparison view.
+// Loadouts' own tab — browsing, loading, deleting, and comparing saved
+// loadouts. Saving a new one happens on the Schedule tab now (next to the
+// schedule it's saving), and the included-courses toggle strip only lives
+// on Schedule too — both were redundant here once the cart was reachable
+// from every tab via the persistent header.
 export default function LoadoutsScreen() {
   const router = useRouter();
   const { session, profile } = useAuth();
@@ -31,28 +26,12 @@ export default function LoadoutsScreen() {
   const [pendingLoadoutId, setPendingLoadoutId] = useState<string | null>(null);
 
   const { data: university } = useUniversity(universityId);
-  const { courses, colorMap, coursesById, isLoading: isLoadingCourses } = useDepartmentCourses(departmentId);
+  const { colorMap, coursesById } = useDepartmentCourses(departmentId);
   const { data: scheduleId } = useSchedule(userId, universityId, departmentId);
-  const { data: scheduleCourses = [] } = useScheduleCourses(scheduleId);
-  const { toggleIncluded } = useCartMutations(scheduleId);
   const { data: loadouts = [] } = useLoadouts(userId, departmentId);
-  const { saveLoadout, deleteLoadout, loadLoadout } = useLoadoutMutations(
-    userId,
-    universityId,
-    departmentId,
-    scheduleId
-  );
+  const { deleteLoadout, loadLoadout } = useLoadoutMutations(userId, universityId, departmentId, scheduleId);
 
   const colorFor = (courseId: string) => colorMap.get(courseId) ?? '#999999';
-
-  const cartCourseIds = useMemo(() => new Set(scheduleCourses.map((r) => r.course_id)), [scheduleCourses]);
-  const includedIds = useMemo(
-    () => new Set(scheduleCourses.filter((r) => r.included).map((r) => r.course_id)),
-    [scheduleCourses]
-  );
-  const cartCourses = useMemo(() => courses.filter((c) => cartCourseIds.has(c.id)), [courses, cartCourseIds]);
-  const includedCourses = useMemo(() => courses.filter((c) => includedIds.has(c.id)), [courses, includedIds]);
-
   const maxCredits = university?.maxCreditsPerSemester ?? 20;
 
   function toggleCompare(id: string) {
@@ -94,36 +73,11 @@ export default function LoadoutsScreen() {
 
   return (
     <ScrollView className="flex-1 bg-white p-4 dark:bg-neutral-950" contentContainerClassName="gap-4 pb-10">
-      {isLoadingCourses ? (
-        <ActivityIndicator />
-      ) : (
-        <IncludedCoursesStrip
-          cartCourses={cartCourses}
-          includedIds={includedIds}
-          colorFor={colorFor}
-          onToggle={(courseId, included) => toggleIncluded.mutate({ courseId, included })}
-        />
-      )}
-
       <View>
-        <Text className="mb-1 text-base font-semibold text-neutral-900 dark:text-neutral-50">
-          Save & compare loadouts
-        </Text>
+        <Text className="mb-1 text-base font-semibold text-neutral-900 dark:text-neutral-50">Saved loadouts</Text>
         <Text className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
-          Save this course combination, then tick two or more below to compare them side by side.
+          Tick two or more below to compare them side by side.
         </Text>
-        <LoadoutSaveForm
-          disabled={includedCourses.length === 0}
-          isSaving={saveLoadout.isPending}
-          existingCount={loadouts.length}
-          onSave={(name) =>
-            saveLoadout.mutate({
-              name,
-              courseIds: includedCourses.map((c) => c.id),
-              totalCredits: sumCredits(includedCourses),
-            })
-          }
-        />
         <LoadoutList
           loadouts={loadouts}
           coursesById={coursesById}

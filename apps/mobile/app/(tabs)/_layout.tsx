@@ -49,10 +49,7 @@ export default function TabsLayout() {
       </View>
 
       <Tabs screenOptions={{ headerShown: false }}>
-        <Tabs.Screen
-          name="courses"
-          options={{ title: 'Courses', tabBarBadge: cartCourseIds.size > 0 ? cartCourseIds.size : undefined }}
-        />
+        <Tabs.Screen name="courses" options={{ title: 'Courses' }} />
         <Tabs.Screen name="schedule" options={{ title: 'Schedule' }} />
         <Tabs.Screen name="loadouts" options={{ title: 'Loadouts' }} />
       </Tabs>

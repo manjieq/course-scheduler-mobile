@@ -121,7 +121,10 @@ export function ComparisonPanel({ name, totalCredits, courses, maxCredits, color
                   const leftPct = item.column * widthPct;
                   return (
                     <EventBlock
-                      key={item.key}
+                      // See ScheduleGrid.tsx's identical key — forces a
+                      // fresh mount when column/columnCount changes so a
+                      // surviving overlapping block never shows stale text.
+                      key={`${item.key}-${item.column}-${item.columnCount}`}
                       course={item.data.course}
                       slot={item.data.slot}
                       color={colorFor(item.data.course.id)}
