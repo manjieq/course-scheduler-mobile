@@ -24,6 +24,19 @@ export default function UniversityOnboardingScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Surfaced after a real case: a self-serve university silently kept the
+  // `max_credits_per_semester` column default of 18, which was wrong for
+  // that school. Optional here (defaults to 18 if left blank) since most
+  // people won't know their cap off the top of their head at signup — it's
+  // also editable later from the Cart sheet while the university is still
+  // pending_review (see 0007_universities_credit_cap_self_edit.sql).
+  const [creditsCap, setCreditsCap] = useState('');
+  // Surfaced after a real case: "Hanyang ERICA University" naively sliced
+  // to 12 chars landed mid-word at "Hanyang ERIC". shortName starts empty
+  // so the TextInput below shows a *live* suggested default derived from
+  // the query — the moment the user actually edits it, this state takes
+  // over and stops following the query.
+  const [shortName, setShortName] = useState('');
 
   const {
     data: universities,
@@ -79,12 +92,16 @@ export default function UniversityOnboardingScreen() {
     setIsSaving(true);
     setError(null);
 
+    const parsedCap = Number(creditsCap);
+    const maxCreditsPerSemester = creditsCap.trim() && Number.isFinite(parsedCap) && parsedCap > 0 ? parsedCap : 18;
+
     const { data, error: insertError } = await supabase
       .from('universities')
       .insert({
         name: trimmedQuery,
-        short_name: trimmedQuery.slice(0, 12),
+        short_name: shortName.trim() || trimmedQuery.slice(0, 12),
         created_by: session.user.id,
+        max_credits_per_semester: maxCreditsPerSemester,
       })
       .select('id')
       .single();
@@ -146,19 +163,36 @@ export default function UniversityOnboardingScreen() {
       )}
 
       {trimmedQuery && !hasExactMatch ? (
-        <Pressable
-          onPress={handleAddNew}
-          disabled={isSaving}
-          className="w-full items-center rounded-xl bg-neutral-900 py-3 disabled:opacity-50 dark:bg-neutral-100"
-        >
-          {isSaving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text className="text-base font-medium text-white dark:text-neutral-900">
-              Add &quot;{trimmedQuery}&quot; as a new university
-            </Text>
-          )}
-        </Pressable>
+        <View className="gap-2">
+          <TextInput
+            value={shortName || trimmedQuery.slice(0, 12)}
+            onChangeText={setShortName}
+            placeholder="Short name / abbreviation"
+            placeholderTextColor="#9ca3af"
+            className="w-full rounded-xl border border-neutral-300 px-4 py-3 text-base text-neutral-900 dark:border-neutral-700 dark:text-neutral-50"
+          />
+          <TextInput
+            value={creditsCap}
+            onChangeText={setCreditsCap}
+            placeholder="Credits per semester cap (defaults to 18)"
+            placeholderTextColor="#9ca3af"
+            keyboardType="number-pad"
+            className="w-full rounded-xl border border-neutral-300 px-4 py-3 text-base text-neutral-900 dark:border-neutral-700 dark:text-neutral-50"
+          />
+          <Pressable
+            onPress={handleAddNew}
+            disabled={isSaving}
+            className="w-full items-center rounded-xl bg-neutral-900 py-3 disabled:opacity-50 dark:bg-neutral-100"
+          >
+            {isSaving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-base font-medium text-white dark:text-neutral-900">
+                Add &quot;{trimmedQuery}&quot; as a new university
+              </Text>
+            )}
+          </Pressable>
+        </View>
       ) : null}
     </View>
   );

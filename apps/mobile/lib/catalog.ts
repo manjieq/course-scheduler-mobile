@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { buildColorMap } from '@course-scheduler/shared-types';
@@ -11,13 +11,18 @@ import { supabase } from './supabase';
 // (snake_case, time slots as a joined table) onto the shared-types shapes
 // the rest of the app (and the ported color/time/layout logic) expects.
 
+/** `status` isn't part of the shared `University` type (only this credit-cap-edit UI needs it) — see app/(onboarding)/university.tsx's own local UniversityRow for the same reasoning. */
+export interface UniversityWithStatus extends University {
+  status: 'pending_review' | 'approved' | 'merged';
+}
+
 export function useUniversity(universityId: string | null | undefined) {
   return useQuery({
     queryKey: ['university', universityId],
-    queryFn: async (): Promise<University> => {
+    queryFn: async (): Promise<UniversityWithStatus> => {
       const { data, error } = await supabase
         .from('universities')
-        .select('id, name, short_name, max_credits_per_semester')
+        .select('id, name, short_name, max_credits_per_semester, status')
         .eq('id', universityId as string)
         .single();
       if (error) throw error;
@@ -26,9 +31,49 @@ export function useUniversity(universityId: string | null | undefined) {
         name: data.name,
         shortName: data.short_name,
         maxCreditsPerSemester: data.max_credits_per_semester,
+        status: data.status,
       };
     },
     enabled: Boolean(universityId),
+  });
+}
+
+/**
+ * Lets a self-serve university's own user correct its credits-per-semester
+ * cap (see 0007_universities_credit_cap_self_edit.sql's RLS policy — only
+ * works while the university is still `pending_review`; the mutation will
+ * fail server-side otherwise, so the UI should only offer this when
+ * useUniversity's `status` is 'pending_review').
+ */
+export function useUpdateCreditCap(universityId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (maxCreditsPerSemester: number) => {
+      const { error } = await supabase
+        .from('universities')
+        .update({ max_credits_per_semester: maxCreditsPerSemester })
+        .eq('id', universityId as string);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['university', universityId] }),
+  });
+}
+
+/**
+ * Same self-serve-edit pattern as useUpdateCreditCap, for `short_name` (see
+ * 0008_universities_short_name_self_edit.sql) — lets a self-serve
+ * university's own user fix a short name that got stuck with the old
+ * naive `name.slice(0, 12)` default (e.g. "Hanyang ERIC" instead of
+ * something like "Hanyang ERICA").
+ */
+export function useUpdateShortName(universityId: string | null | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (shortName: string) => {
+      const { error } = await supabase.from('universities').update({ short_name: shortName }).eq('id', universityId as string);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['university', universityId] }),
   });
 }
 

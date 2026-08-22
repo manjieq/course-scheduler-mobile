@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { AddDepartmentForm } from '../../components/courses/AddDepartmentForm';
 import { CategoryTabs } from '../../components/courses/CategoryTabs';
 import type { CourseCategoryTab } from '../../components/courses/CategoryTabs';
 import { CourseList } from '../../components/courses/CourseList';
@@ -68,6 +69,8 @@ export default function CoursesScreen() {
             disabled={isSwitchingDepartment}
           />
         )}
+
+        {universityId && <AddDepartmentForm universityId={universityId} onAdded={handleSelectDepartment} />}
 
         {!departmentId ? (
           <Text className="text-sm text-neutral-500 dark:text-neutral-400">

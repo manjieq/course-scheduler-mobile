@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CartSheet } from '../../components/cart/CartSheet';
 import { AppHeader } from '../../components/layout/AppHeader';
 import { useAuth } from '../../lib/auth-context';
-import { useDepartmentCourses, useUniversity } from '../../lib/catalog';
+import { useDepartmentCourses, useUniversity, useUpdateCreditCap, useUpdateShortName } from '../../lib/catalog';
 import { useCartMutations, useSchedule, useScheduleCourses } from '../../lib/schedule-data';
 
 // Three tabs (Courses/Schedule/Loadouts — see app/(tabs)/loadouts.tsx) under
@@ -28,6 +28,8 @@ export default function TabsLayout() {
   const { data: scheduleId } = useSchedule(userId, universityId, departmentId);
   const { data: scheduleCourses = [] } = useScheduleCourses(scheduleId);
   const { removeFromCart, toggleIncluded } = useCartMutations(scheduleId);
+  const updateCreditCap = useUpdateCreditCap(universityId);
+  const updateShortName = useUpdateShortName(universityId);
 
   const colorFor = (courseId: string) => colorMap.get(courseId) ?? '#999999';
 
@@ -64,6 +66,15 @@ export default function TabsLayout() {
           colorFor={colorFor}
           onRemove={(id) => removeFromCart.mutate(id)}
           onToggleIncluded={(id, included) => toggleIncluded.mutate({ courseId: id, included })}
+          onEditCreditCap={
+            university.status === 'pending_review' ? (next) => updateCreditCap.mutate(next) : undefined
+          }
+          isEditingCreditCap={updateCreditCap.isPending}
+          universityShortName={university.shortName}
+          onEditShortName={
+            university.status === 'pending_review' ? (next) => updateShortName.mutate(next) : undefined
+          }
+          isEditingShortName={updateShortName.isPending}
         />
       )}
     </View>

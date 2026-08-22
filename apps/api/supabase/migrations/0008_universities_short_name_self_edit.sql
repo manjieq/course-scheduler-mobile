@@ -1,0 +1,14 @@
+-- Extends 0007_universities_credit_cap_self_edit.sql's grant to also cover
+-- `short_name`. No new RLS policy needed — universities_owner_update_
+-- credit_cap already scopes which *rows* a self-serve university's own
+-- user can update (their own university, only while pending_review); this
+-- just adds the second column to what they're actually allowed to write.
+--
+-- Surfaced after a real case: the self-serve add-university flow used to
+-- silently derive short_name via a naive `name.slice(0, 12)`, which for
+-- "Hanyang ERICA University" produced "Hanyang ERIC" — a mid-word cut, not
+-- a deliberate abbreviation. The onboarding form now lets the user edit
+-- that suggestion before submitting (fixing new signups); this grant lets
+-- an existing self-serve university's own user correct one that already
+-- got stuck with the naive truncation.
+grant update (short_name) on universities to authenticated;
