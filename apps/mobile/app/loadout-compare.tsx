@@ -1,8 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 
+import { computeScheduleDays, computeScheduleHourRange } from '@course-scheduler/shared-types';
 import type { Course } from '@course-scheduler/shared-types';
 
 import { ComparisonPanel } from '../components/loadouts/ComparisonPanel';
@@ -78,16 +79,49 @@ export default function LoadoutCompareScreen() {
   const fitsEven = evenWidth >= MIN_PANEL_WIDTH;
   const panelWidth = fitsEven ? evenWidth : MIN_PANEL_WIDTH;
 
+  const loadoutCourses = useMemo(
+    () =>
+      comparedLoadouts.map((loadout) =>
+        loadout.courseIds.map((id) => coursesById.get(id)).filter((c): c is Course => Boolean(c))
+      ),
+    [comparedLoadouts, coursesById]
+  );
+
+  // One shared hour range, and one shared set of day columns (Mon-Fri,
+  // plus Sat/Sun only if a compared loadout actually meets then), for
+  // every panel — same fix ScheduleGrid got for the same bug (see
+  // ComparisonPanel.tsx's comment), computed once across *all* compared
+  // loadouts rather than per panel so a night class or weekend meeting in
+  // only one of them doesn't leave the panels' axes misaligned with each
+  // other.
+  const allComparedCourses = useMemo(() => loadoutCourses.flat(), [loadoutCourses]);
+  const { startHour, endHour } = useMemo(
+    () => computeScheduleHourRange(allComparedCourses),
+    [allComparedCourses]
+  );
+  const days = useMemo(() => computeScheduleDays(allComparedCourses), [allComparedCourses]);
+
+  // Measured (not estimated), same approach as the Schedule tab's own grid
+  // — see schedule.tsx's identical comment. This View is already flex-1,
+  // so its own measured height is exactly the space left for panels after
+  // the header row above it, no subtraction needed.
+  const [panelsAreaHeight, setPanelsAreaHeight] = useState(0);
+  const handlePanelsAreaLayout = (e: LayoutChangeEvent) => setPanelsAreaHeight(e.nativeEvent.layout.height);
+
   function renderPanels() {
-    return comparedLoadouts.map((loadout) => (
+    return comparedLoadouts.map((loadout, i) => (
       <ComparisonPanel
         key={loadout.id}
         name={loadout.name}
         totalCredits={loadout.totalCredits}
-        courses={loadout.courseIds.map((id) => coursesById.get(id)).filter((c): c is Course => Boolean(c))}
+        courses={loadoutCourses[i]}
         maxCredits={maxCredits}
         colorFor={colorFor}
         width={panelWidth}
+        startHour={startHour}
+        endHour={endHour}
+        days={days}
+        maxHeight={panelsAreaHeight || undefined}
       />
     ));
   }
@@ -112,9 +146,16 @@ export default function LoadoutCompareScreen() {
           </Text>
         </View>
       ) : fitsEven ? (
-        <View className="flex-1 flex-row gap-3 px-4 pb-4">{renderPanels()}</View>
+        <View className="flex-1 flex-row gap-3 px-4 pb-4" onLayout={handlePanelsAreaLayout}>
+          {renderPanels()}
+        </View>
       ) : (
-        <ScrollView horizontal contentContainerClassName="flex-row gap-3 px-4 pb-4">
+        <ScrollView
+          horizontal
+          className="flex-1"
+          contentContainerClassName="flex-row gap-3 px-4 pb-4"
+          onLayout={handlePanelsAreaLayout}
+        >
           {renderPanels()}
         </ScrollView>
       )}
