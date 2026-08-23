@@ -178,7 +178,32 @@ deletes or restructures it; this is a brand-new, separate project by design
    temporary Phase 2 affordance), the university credit-cap/short-name
    self-serve edits (moved out of the Cart sheet, which should stay
    focused on the actual course selection), and a spot for Phase 6's
-   theming toggle once that exists.
+   theming toggle once that exists. ✅ done (the catalog-write half landed
+   as a side effect of Phase 4's `confirm-course` upsert; this phase added
+   the actual cache check, in `_shared/catalog-cache.ts` — Chat's regex
+   pre-filter can skip the Gemini call entirely on an obvious course-code
+   match in the caller's own text, while Scan can't skip the vision pass
+   but overlays a code match's already-confirmed catalog fields over the
+   AI's fresh per-photo guess. `app/settings.tsx` is the promised Settings
+   modal, moving Sign out and the university self-serve edit fields out of
+   Courses/CartSheet. Testing this surfaced two more real gaps, fixed
+   alongside it: the landscape loadout-comparison grid
+   (`ComparisonPanel.tsx`) had the same fixed-hour-range/fixed-row-height
+   bug `ScheduleGrid` was fixed for in Phase 4 — ported the same
+   `computeScheduleHourRange` + measured-shrink-to-fit approach, plus a
+   comparison-specific addition (one shared hour range *and* day-column
+   set computed across all compared loadouts at once, not per panel, so
+   two panels' axes stay aligned rather than drifting independently); and
+   weekend meeting times turned out to be silently unsupported everywhere
+   — rejected by `course_time_slots.day`'s DB check constraint,
+   unrepresentable in the shared `DayOfWeek` type, constrained out of
+   Gemini's extraction schema, and unselectable in the confirm screen's
+   day picker. `0009_weekend_days.sql` plus a widened
+   `DayOfWeek`/`DAYS_OF_WEEK` and a new `computeScheduleDays()` — mirroring
+   `computeScheduleHourRange`'s "only render what's actually used"
+   pattern, so a Mon-Fri-only schedule keeps its narrower layout — close
+   that gap end to end. See git history around the Phase 5 commits for the
+   fuller detail.)
 6. **Polish** — theming, empty/error states, comparison-view refinement.
 7. **Testing hardening + EAS build prep**.
 
