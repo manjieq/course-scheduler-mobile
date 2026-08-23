@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '../lib/auth-context';
 import { ExtractionReviewProvider } from '../lib/extraction-review-context';
+import { useThemeRestore } from '../lib/theme';
 
 const queryClient = new QueryClient();
 
@@ -54,9 +55,14 @@ function useDefaultPortraitLock() {
 
 function RootLayoutNav() {
   const isLoading = useAuthRoutingGate();
+  // Blocks the same loading spinner already shown below until the saved
+  // theme preference (if any) has been restored — see lib/theme.ts — so
+  // there's never a flash of the wrong theme while that AsyncStorage read
+  // is still in flight.
+  const isThemeReady = useThemeRestore();
   useDefaultPortraitLock();
 
-  if (isLoading) {
+  if (isLoading || !isThemeReady) {
     return (
       <View className="flex-1 items-center justify-center bg-white dark:bg-neutral-950">
         <ActivityIndicator />

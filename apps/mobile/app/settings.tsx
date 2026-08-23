@@ -1,8 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '../lib/auth-context';
 import { useUniversity, useUpdateCreditCap, useUpdateShortName } from '../lib/catalog';
+import { getThemePreference, setThemePreference, type ThemePreference } from '../lib/theme';
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
 
 // Phase 5: the real settings screen the Phase 4 note promised — a header
 // icon button opening a modal, same pattern as scan/chat (see
@@ -14,8 +21,8 @@ import { useUniversity, useUpdateCreditCap, useUpdateShortName } from '../lib/ca
 //     previously stuffed into CartSheet with a comment admitting they
 //     weren't really "cart" content — CartSheet is back to just being
 //     about course selection now.
-// Phase 6's theming toggle has a marked spot below to land in once it
-// exists.
+// Phase 6: the theming toggle that had a marked spot below now lives there
+// — see lib/theme.ts for how it drives every dark: class app-wide.
 export default function SettingsScreen() {
   const { profile, signOut } = useAuth();
   const universityId = profile?.university_id ?? null;
@@ -23,6 +30,20 @@ export default function SettingsScreen() {
   const { data: university } = useUniversity(universityId);
   const updateCreditCap = useUpdateCreditCap(universityId);
   const updateShortName = useUpdateShortName(universityId);
+
+  // Starts at 'system' (the pre-restore default) and is corrected once
+  // AsyncStorage's read comes back — app/_layout.tsx already blocked the
+  // app from rendering at all until that same read resolved, so in
+  // practice this only ever shows the already-correct value.
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system');
+  useEffect(() => {
+    getThemePreference().then(setThemePreferenceState);
+  }, []);
+
+  function handleSelectTheme(preference: ThemePreference) {
+    setThemePreferenceState(preference);
+    setThemePreference(preference);
+  }
 
   const isEditable = university?.status === 'pending_review';
 
@@ -134,7 +155,33 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* Phase 6 spot: theming toggle goes here once it exists. */}
+        <View className="gap-1">
+          <Text className="text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-600">
+            Appearance
+          </Text>
+          <View className="flex-row flex-wrap gap-1.5">
+            {THEME_OPTIONS.map(({ value, label }) => {
+              const active = value === themePreference;
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => handleSelectTheme(value)}
+                  className={`rounded-full px-3 py-1.5 ${
+                    active ? 'bg-neutral-900 dark:bg-neutral-100' : 'border border-neutral-300 dark:border-neutral-700'
+                  }`}
+                >
+                  <Text
+                    className={`text-xs font-semibold ${
+                      active ? 'text-white dark:text-neutral-900' : 'text-neutral-500 dark:text-neutral-400'
+                    }`}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
         <Pressable
           onPress={signOut}
