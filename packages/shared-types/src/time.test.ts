@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { computeScheduleHourRange, courseHasConflict, findConflicts, formatTime, slotsOverlap, toMinutes } from './time';
+import {
+  computeScheduleDays,
+  computeScheduleHourRange,
+  courseHasConflict,
+  findConflicts,
+  formatTime,
+  slotsOverlap,
+  toMinutes,
+} from './time';
 import type { Course } from './models';
 
 function course(id: string, code: string, schedule: Course['schedule']): Course {
@@ -90,5 +98,29 @@ describe('computeScheduleHourRange', () => {
     const courses = [course('a', 'CS101', [{ day: 'FRI', start: '17:00', end: '17:30' }])];
     // ceil(17:30) = 18, +1 padding = 19.
     expect(computeScheduleHourRange(courses)).toEqual({ startHour: 8, endHour: 19 });
+  });
+});
+
+describe('computeScheduleDays', () => {
+  it('stays at Mon-Fri when no course meets on a weekend', () => {
+    const courses = [course('a', 'CS101', [{ day: 'MON', start: '09:00', end: '10:00' }])];
+    expect(computeScheduleDays(courses)).toEqual(['MON', 'TUE', 'WED', 'THU', 'FRI']);
+  });
+
+  it('returns Mon-Fri for an empty course list', () => {
+    expect(computeScheduleDays([])).toEqual(['MON', 'TUE', 'WED', 'THU', 'FRI']);
+  });
+
+  it('appends Saturday only when a course actually meets then', () => {
+    const courses = [course('a', 'CS101', [{ day: 'SAT', start: '09:00', end: '10:00' }])];
+    expect(computeScheduleDays(courses)).toEqual(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']);
+  });
+
+  it('appends Sunday only when a course actually meets then, after Saturday', () => {
+    const courses = [
+      course('a', 'CS101', [{ day: 'SUN', start: '09:00', end: '10:00' }]),
+      course('b', 'CS102', [{ day: 'SAT', start: '09:00', end: '10:00' }]),
+    ];
+    expect(computeScheduleDays(courses)).toEqual(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']);
   });
 });

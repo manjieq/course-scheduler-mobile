@@ -1,7 +1,7 @@
 // Ported unchanged from the prototype's src/utils/time.ts. Conflict detection
 // stays a pure, on-demand computation (never persisted) and is a warning
 // only, never a block on adding/including a course.
-import type { Course, ConflictPair, TimeSlot } from './models';
+import type { Course, ConflictPair, DayOfWeek, TimeSlot } from './models';
 
 /** Converts a "HH:MM" 24h string into minutes since midnight. */
 export function toMinutes(hhmm: string): number {
@@ -87,4 +87,27 @@ export function computeScheduleHourRange(
   const endHour = rawEndHour <= defaultEndHour ? defaultEndHour : rawEndHour + endPaddingHours;
 
   return { startHour, endHour };
+}
+
+const WEEKDAYS: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+
+/**
+ * Derives which day columns a weekly schedule grid should render — the
+ * same "only pay for what's actually used" idea as
+ * computeScheduleHourRange, applied to days instead of hours. Mon-Fri
+ * always render (the near-universal case); Saturday and/or Sunday are
+ * appended only when a course actually meets then, so the common
+ * Mon-Fri-only schedule keeps the narrower 5-day layout the grid was
+ * already tuned to fit on a phone without horizontal scrolling, instead of
+ * always reserving two columns nobody uses. DAYS_OF_WEEK itself (all 7,
+ * unconditionally) stays the right choice for an *editor* like
+ * TimeSlotEditor, where the point is letting the user pick a day that
+ * doesn't show up in their schedule yet.
+ */
+export function computeScheduleDays(courses: Course[]): DayOfWeek[] {
+  const present = new Set(courses.flatMap((course) => course.schedule.map((slot) => slot.day)));
+  const days = [...WEEKDAYS];
+  if (present.has('SAT')) days.push('SAT');
+  if (present.has('SUN')) days.push('SUN');
+  return days;
 }

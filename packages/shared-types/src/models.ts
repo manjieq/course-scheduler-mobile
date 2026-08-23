@@ -4,9 +4,19 @@
 // `supabase gen types typescript`; these are the app-level/logic shapes
 // that mirror them (see CLAUDE.md's prototype -> new-stack mapping table).
 
-export type DayOfWeek = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI';
+// Weekend days included alongside the weekdays — a real, if uncommon, case
+// (weekend labs/electives) that used to be silently unsupported end to end:
+// rejected by the DB check constraint, unrepresentable in this type, and
+// unselectable in the confirm screen's day picker. DAYS_OF_WEEK is the
+// full canonical week (used by TimeSlotEditor's day picker, which should
+// always offer all 7) — a schedule *grid* rendering existing courses
+// should NOT default to iterating this constant directly, since that would
+// always pay for two columns nobody uses; see computeScheduleDays in
+// time.ts for the "only show Sat/Sun once a course actually meets then"
+// grid-sizing counterpart, the same idea as computeScheduleHourRange.
+export type DayOfWeek = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 
-export const DAYS_OF_WEEK: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+export const DAYS_OF_WEEK: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 export const DAY_LABELS: Record<DayOfWeek, string> = {
   MON: 'Monday',
@@ -14,6 +24,8 @@ export const DAY_LABELS: Record<DayOfWeek, string> = {
   WED: 'Wednesday',
   THU: 'Thursday',
   FRI: 'Friday',
+  SAT: 'Saturday',
+  SUN: 'Sunday',
 };
 
 /** A single weekly meeting time, e.g. Monday 09:00-10:30. */

@@ -39,7 +39,7 @@ const RESPONSE_SCHEMA = {
             items: {
               type: 'object',
               properties: {
-                day: { type: 'string', enum: ['MON', 'TUE', 'WED', 'THU', 'FRI'] },
+                day: { type: 'string', enum: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] },
                 start: { type: 'string' },
                 end: { type: 'string' },
               },
@@ -59,6 +59,8 @@ Return every course you can find with: its course code, its full name, its
 credit value, its instructor if shown, and every weekly meeting time (day,
 24-hour start time, 24-hour end time). A course can meet more than once a
 week — include one timeSlots entry per meeting, not one course per meeting.
+Most classes meet on weekdays, but some meet on Saturday or Sunday — read
+the day exactly as shown rather than assuming it must be a weekday.
 Do not guess a value you cannot actually see; omit optional fields (like
 instructor) rather than inventing one.`;
 

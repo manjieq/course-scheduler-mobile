@@ -12,7 +12,12 @@
 
 import { z } from 'npm:zod@3';
 
-const DAY = z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI']);
+// Includes weekend days (see 0009_weekend_days.sql) — an uncommon but real
+// case (weekend labs/electives) that used to be silently unsupported here:
+// Gemini's structured output is constrained to whatever this enum allows,
+// so a Saturday class in a real listing would have been forced into a
+// weekday rather than rejected outright.
+const DAY = z.enum(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']);
 
 // Accepts "9:00" as well as "09:00" — both the model and a manual edit on
 // the confirm screen can produce an unpadded hour — but always normalizes

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
 
-import { computeScheduleHourRange, DAYS_OF_WEEK, DAY_LABELS, layoutOverlaps, toMinutes } from '@course-scheduler/shared-types';
+import { computeScheduleDays, computeScheduleHourRange, DAY_LABELS, layoutOverlaps, toMinutes } from '@course-scheduler/shared-types';
 import type { ConflictPair, Course, LayoutInput } from '@course-scheduler/shared-types';
 
 import { EventBlock } from './EventBlock';
@@ -62,6 +62,11 @@ export function ScheduleGrid({ courses, colorFor, conflicts = [], maxBodyHeight 
     );
   }
 
+  // Same "only show it if a course actually uses it" idea as the hour
+  // range below, applied to days: Mon-Fri always render, Sat/Sun only join
+  // when something actually meets then — see computeScheduleDays.
+  const days = computeScheduleDays(courses);
+
   const { startHour: START_HOUR, endHour: END_HOUR } = computeScheduleHourRange(courses);
   const totalHours = END_HOUR - START_HOUR;
   const naturalBodyHeight = totalHours * DEFAULT_HOUR_PX;
@@ -78,13 +83,13 @@ export function ScheduleGrid({ courses, colorFor, conflicts = [], maxBodyHeight 
   // what the parent actually gives this component to work with, so no
   // padding/margin guesswork is needed the way maxBodyHeight's caller has
   // to do across sibling elements above it.
-  const naturalColumnsWidth = DEFAULT_DAY_COLUMN_WIDTH * DAYS_OF_WEEK.length;
+  const naturalColumnsWidth = DEFAULT_DAY_COLUMN_WIDTH * days.length;
   const availableColumnsWidth = containerWidth
     ? Math.max(containerWidth - GUTTER_WIDTH - EDGE_SAFETY_MARGIN, 0)
     : undefined;
   const DAY_COLUMN_WIDTH =
     availableColumnsWidth && naturalColumnsWidth > availableColumnsWidth
-      ? Math.max(MIN_DAY_COLUMN_WIDTH, Math.floor(availableColumnsWidth / DAYS_OF_WEEK.length))
+      ? Math.max(MIN_DAY_COLUMN_WIDTH, Math.floor(availableColumnsWidth / days.length))
       : DEFAULT_DAY_COLUMN_WIDTH;
 
   const isConflicted = (slot: Course['schedule'][number]) =>
@@ -99,7 +104,7 @@ export function ScheduleGrid({ courses, colorFor, conflicts = [], maxBodyHeight 
         <View>
           <View className="flex-row border-b border-neutral-200 dark:border-neutral-800">
             <View style={{ width: GUTTER_WIDTH }} />
-            {DAYS_OF_WEEK.map((day) => (
+            {days.map((day) => (
               <View key={day} style={{ width: DAY_COLUMN_WIDTH }} className="items-center py-1.5">
                 <Text className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400">
                   {DAY_LABELS[day]}
@@ -121,7 +126,7 @@ export function ScheduleGrid({ courses, colorFor, conflicts = [], maxBodyHeight 
               ))}
             </View>
 
-            {DAYS_OF_WEEK.map((day) => {
+            {days.map((day) => {
               const entries: LayoutInput<EventEntry>[] = [];
               for (const course of courses) {
                 for (const slot of course.schedule) {
