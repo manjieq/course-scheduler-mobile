@@ -52,6 +52,14 @@ export function AppHeader({ universityShortName, cartCount, onOpenCart }: AppHea
         >
           <Text className="text-sm">💬</Text>
         </Pressable>
+        {/* Phase 5: settings modal — sign out + university self-serve edits. */}
+        <Pressable
+          onPress={() => router.push('/settings')}
+          hitSlop={8}
+          className="mr-2 rounded-full border border-neutral-300 px-3 py-1.5 dark:border-neutral-700"
+        >
+          <Text className="text-sm">⚙️</Text>
+        </Pressable>
         <CartHeaderButton count={cartCount} onPress={onOpenCart} />
       </View>
     </View>

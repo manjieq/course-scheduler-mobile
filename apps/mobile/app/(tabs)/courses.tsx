@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { AddDepartmentForm } from '../../components/courses/AddDepartmentForm';
 import { CategoryTabs } from '../../components/courses/CategoryTabs';
@@ -19,7 +19,7 @@ import { supabase } from '../../lib/supabase';
 // DepartmentSelector, but persisted to profiles.department_id so the choice
 // survives reload and stays in sync with the other tabs.
 export default function CoursesScreen() {
-  const { session, profile, refreshProfile, signOut } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
   const userId = session?.user.id;
   const universityId = profile?.university_id ?? null;
   const departmentId = profile?.department_id ?? null;
@@ -102,12 +102,6 @@ export default function CoursesScreen() {
             )}
           </>
         )}
-
-        {/* Temporary Phase 2 testing affordance, carried forward — moves
-            once Phase 6 adds a real settings screen. */}
-        <Pressable onPress={signOut} className="mt-2 self-center">
-          <Text className="text-xs text-neutral-400 underline dark:text-neutral-600">Sign out</Text>
-        </Pressable>
       </ScrollView>
     </View>
   );

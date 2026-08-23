@@ -75,6 +75,7 @@ function RootLayoutNav() {
         name="confirm-courses"
         options={{ presentation: 'modal', headerShown: true, title: 'Confirm courses' }}
       />
+      <Stack.Screen name="settings" options={{ presentation: 'modal', headerShown: true, title: 'Settings' }} />
       <Stack.Screen name="loadout-compare" options={{ presentation: 'modal', headerShown: false }} />
     </Stack>
   );
@@ -89,6 +90,7 @@ function RootLayoutNav() {
 //                     (Phase 4) — see lib/extraction-review-context.tsx
 //   loadout-compare — landscape side-by-side loadout comparison (see the
 //                     Loadouts tab's "View side by side")
+//   settings        — sign out + university self-serve edits (Phase 5)
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
