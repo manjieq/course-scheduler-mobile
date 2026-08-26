@@ -56,6 +56,12 @@ describe('Row Level Security', () => {
   let universityId: string;
   let departmentId: string;
   let seededCourseId: string;
+  // A second real course, distinct from seededCourseId — the loadout_courses
+  // impersonation test below needs an (loadout_id, course_id) pair that
+  // doesn't already exist, so a blocked insert is provably an RLS block and
+  // not just a primary-key conflict on a pair the top-level beforeAll
+  // already inserted.
+  let secondCourseId: string;
 
   beforeAll(async () => {
     userA = freshClient();
@@ -91,6 +97,16 @@ describe('Row Level Security', () => {
       .single();
     if (courseError) throw courseError;
     seededCourseId = course.id;
+
+    const { data: secondCourse, error: secondCourseError } = await userA
+      .from('courses')
+      .select('id')
+      .eq('department_id', departmentId)
+      .neq('id', seededCourseId)
+      .limit(1)
+      .single();
+    if (secondCourseError) throw secondCourseError;
+    secondCourseId = secondCourse.id;
 
     // Mirrors what apps/mobile/app/(onboarding)/university.tsx does on
     // real onboarding — an authenticated user upserting their own
@@ -185,6 +201,54 @@ describe('Row Level Security', () => {
         .insert({ schedule_id: scheduleAId, course_id: seededCourseId });
       expect(impersonatedInsertError).not.toBeNull();
     });
+
+    it('lets the owner update schedule_courses (TOGGLE_INCLUDED)', async () => {
+      const { error } = await userA
+        .from('schedule_courses')
+        .update({ included: false })
+        .eq('schedule_id', scheduleAId)
+        .eq('course_id', seededCourseId);
+      expect(error).toBeNull();
+
+      const { data } = await userA
+        .from('schedule_courses')
+        .select('included')
+        .eq('schedule_id', scheduleAId)
+        .eq('course_id', seededCourseId)
+        .single();
+      expect(data?.included).toBe(false);
+    });
+
+    it("blocks a non-owner from deleting another user's schedule_courses row", async () => {
+      const { data, error } = await userB
+        .from('schedule_courses')
+        .delete()
+        .eq('schedule_id', scheduleAId)
+        .eq('course_id', seededCourseId)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: stillThere } = await userA
+        .from('schedule_courses')
+        .select('course_id')
+        .eq('schedule_id', scheduleAId)
+        .eq('course_id', seededCourseId);
+      expect(stillThere).toEqual([{ course_id: seededCourseId }]);
+    });
+
+    // Last in this describe, after the schedule_courses tests above that
+    // still need scheduleAId to exist — a blocked delete doesn't actually
+    // remove the row, but this stays last regardless so nothing downstream
+    // could ever depend on a deleted schedule by accident.
+    it("blocks deleting another user's schedule", async () => {
+      const { data, error } = await userB.from('schedules').delete().eq('id', scheduleAId).select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: stillThere } = await userA.from('schedules').select('id').eq('id', scheduleAId).single();
+      expect(stillThere?.id).toBe(scheduleAId);
+    });
   });
 
   describe('loadouts (immutable snapshots) and loadout_courses', () => {
@@ -224,6 +288,39 @@ describe('Row Level Security', () => {
       expect(courses).toEqual([]);
     });
 
+    it('blocks inserting a loadout that impersonates another user', async () => {
+      const { error } = await userB.from('loadouts').insert({
+        user_id: userAId,
+        name: 'Impersonated loadout',
+        university_id: universityId,
+        department_id: departmentId,
+        total_credits: 0,
+      });
+      expect(error).not.toBeNull();
+    });
+
+    it('blocks inserting into loadout_courses via impersonation of the parent loadout', async () => {
+      // secondCourseId, not seededCourseId — this pair doesn't already
+      // exist, so a block here can only be the ownership policy, not a
+      // primary-key conflict on the pair the beforeAll above inserted.
+      const { error } = await userB.from('loadout_courses').insert({ loadout_id: loadoutAId, course_id: secondCourseId });
+      expect(error).not.toBeNull();
+    });
+
+    it("blocks a non-owner from deleting another user's loadout_courses row", async () => {
+      const { data, error } = await userB
+        .from('loadout_courses')
+        .delete()
+        .eq('loadout_id', loadoutAId)
+        .eq('course_id', seededCourseId)
+        .select();
+      expect(error).toBeNull();
+      expect(data).toEqual([]);
+
+      const { data: stillThere } = await userA.from('loadout_courses').select('course_id').eq('loadout_id', loadoutAId);
+      expect(stillThere).toEqual([{ course_id: seededCourseId }]);
+    });
+
     it("blocks deleting another user's loadout", async () => {
       const { data, error } = await userB.from('loadouts').delete().eq('id', loadoutAId).select();
       expect(error).toBeNull();
@@ -249,6 +346,76 @@ describe('Row Level Security', () => {
         name: 'Should never land via a direct client insert',
         credits: 3,
         category: 'elective',
+      });
+      expect(error).not.toBeNull();
+    });
+  });
+
+  describe('course_time_slots and course_corrections (public read, no direct write — 0001_init.sql)', () => {
+    it('course_time_slots is readable by any authenticated user', async () => {
+      const { data, error } = await userB.from('course_time_slots').select('id').eq('course_id', seededCourseId);
+      expect(error).toBeNull();
+      expect(data!.length).toBeGreaterThan(0);
+    });
+
+    it('cannot be written to directly by a client', async () => {
+      const { error } = await userA.from('course_time_slots').insert({
+        course_id: seededCourseId,
+        day: 'MON',
+        start_time: '09:00',
+        end_time: '10:00',
+      });
+      expect(error).not.toBeNull();
+    });
+
+    it('course_corrections is readable by any authenticated user, even with no rows yet', async () => {
+      const { error } = await userB.from('course_corrections').select('id').limit(1);
+      expect(error).toBeNull();
+    });
+
+    it('cannot be written to directly by a client — only confirm-course (service role) logs a correction', async () => {
+      const { error } = await userA.from('course_corrections').insert({
+        course_id: seededCourseId,
+        field: 'name',
+        old_value: 'Old Name',
+        new_value: 'New Name',
+      });
+      expect(error).not.toBeNull();
+    });
+  });
+
+  describe("departments self-serve insert (0005/0006), scoped to the caller's own university", () => {
+    // A second university, unrelated to userA/userB's shared NSU fixture —
+    // any authenticated user can self-serve one (see the describe below),
+    // so this just needs *a* university userA doesn't belong to, to prove
+    // 0005's policy reads university_id from the caller's own profile
+    // server-side rather than trusting whatever the client sends.
+    let otherUniversityId: string;
+
+    beforeAll(async () => {
+      const { data, error } = await userB
+        .from('universities')
+        .insert({ name: `RLS Departments Other Univ ${Date.now()}`, short_name: 'OTH', status: 'pending_review', created_by: userBId })
+        .select('id')
+        .single();
+      if (error) throw error;
+      otherUniversityId = data.id;
+    });
+
+    it('lets a user add a department to their own university', async () => {
+      const { error } = await userA.from('departments').insert({
+        university_id: universityId,
+        code: `RLS-${Date.now()}`,
+        name: 'RLS Test Department',
+      });
+      expect(error).toBeNull();
+    });
+
+    it("blocks adding a department to a university that isn't theirs", async () => {
+      const { error } = await userA.from('departments').insert({
+        university_id: otherUniversityId,
+        code: `RLS-FOREIGN-${Date.now()}`,
+        name: 'Should never land via a foreign university_id',
       });
       expect(error).not.toBeNull();
     });
