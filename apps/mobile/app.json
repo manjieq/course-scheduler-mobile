@@ -1,16 +1,21 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Course Scheduler",
+    "slug": "course-scheduler",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "coursescheduler",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.coursescheduler.app"
     },
     "android": {
+      "package": "com.coursescheduler.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -24,7 +29,26 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan a course listing.",
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to scan a course listing."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#0a0a0a"
+          }
+        }
+      ]
     ]
   }
 }
