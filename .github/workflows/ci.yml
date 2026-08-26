@@ -1,0 +1,53 @@
+name: CI
+
+# Runs the same checks the repo already defines at the root
+# (build/test/lint/typecheck, all orchestrated by Turborepo) on every push
+# to main and every PR. This is intentionally just a gate on scripts that
+# already exist and are verified to pass locally — it doesn't invent new
+# checks, it just makes the existing ones mandatory instead of "someone
+# remembered to run them before pushing."
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel a still-running CI run for the same branch/PR when a new commit
+# supersedes it, instead of burning minutes on stale code.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pinned version from package.json's "packageManager" field
+      # rather than hardcoding one here, so the two can't drift apart.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Order matters for turbo's cache reuse: build primes the
+      # shared-types dist output that test/typecheck depend on
+      # (turbo.json's `dependsOn: ["^build"]`), so later steps hit cache
+      # instead of rebuilding it.
+      - name: Build
+        run: pnpm build
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test

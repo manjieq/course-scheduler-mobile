@@ -2,6 +2,7 @@
   "name": "api",
   "private": true,
   "scripts": {
-    "lint": "echo \"(Edge Functions land in Phase 4 - nothing to lint yet)\""
+    "lint": "echo \"(Deno edge functions - not wired into npm/turbo lint yet, run `deno lint` manually under apps/api/supabase/functions)\"",
+    "typecheck": "echo \"(Deno edge functions - not wired into npm/turbo typecheck yet, run `deno check` manually under apps/api/supabase/functions)\""
   }
 }
