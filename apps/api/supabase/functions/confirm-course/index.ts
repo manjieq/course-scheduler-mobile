@@ -9,6 +9,16 @@
 // the client just got them from the extract-* response a moment ago —
 // never trust a client-supplied id for the write path (Gap 2, extended to
 // department — see CLAUDE.md).
+//
+// The actual commit (course upsert + correction log + time-slot replace)
+// happens in one call to the confirm_course_write() Postgres function
+// (0010_confirm_course_atomic.sql), not as separate PostgREST calls —
+// those used to be independent writes, so a failure partway through
+// (e.g. the time-slot insert failing right after the old slots had
+// already been deleted) could leave a course with zero meeting times.
+// The function makes the whole thing one transaction: all of it lands or
+// none of it does. The correction diff itself is still computed here in
+// TS (see corrections.ts's comment on why) and passed in pre-computed.
 
 import { diffCourseFields, type CourseFieldSnapshot } from '../_shared/corrections.ts';
 import { getAuthedUser, getServiceRoleClient, UnauthenticatedError } from '../_shared/auth.ts';
@@ -54,70 +64,40 @@ Deno.serve(async (req: Request) => {
     // explicit `null` for "no instructor", never rely on key-dropping.
     const rowPayload = { ...newSnapshot, instructor: newSnapshot.instructor ?? null };
 
-    let courseId: string;
-    let wasCorrection = false;
+    const corrections = existing
+      ? diffCourseFields(
+          {
+            name: existing.name,
+            credits: Number(existing.credits),
+            category: existing.category,
+            instructor: existing.instructor ?? undefined,
+          },
+          newSnapshot
+        )
+      : [];
+    const wasCorrection = corrections.length > 0;
 
-    if (existing) {
-      courseId = existing.id;
-      const oldSnapshot: CourseFieldSnapshot = {
-        name: existing.name,
-        credits: Number(existing.credits),
-        category: existing.category,
-        instructor: existing.instructor ?? undefined,
-      };
-      const corrections = diffCourseFields(oldSnapshot, newSnapshot);
-      wasCorrection = corrections.length > 0;
+    // Single atomic write — see confirm_course_write() in
+    // 0010_confirm_course_atomic.sql for why this is one RPC call instead
+    // of the four separate PostgREST calls (upsert course, log
+    // corrections, delete old slots, insert new slots) this used to be.
+    const { data: result, error: writeError } = await db
+      .rpc('confirm_course_write', {
+        p_university_id: universityId,
+        p_department_id: departmentId,
+        p_code: draft.code,
+        p_name: rowPayload.name,
+        p_credits: rowPayload.credits,
+        p_category: rowPayload.category,
+        p_instructor: rowPayload.instructor,
+        p_confirmed_by: user.id,
+        p_corrections: corrections.map((c) => ({ field: c.field, old_value: c.oldValue, new_value: c.newValue })),
+        p_time_slots: draft.timeSlots.map((slot) => ({ day: slot.day, start: slot.start, end: slot.end })),
+      })
+      .single();
+    if (writeError) throw writeError;
 
-      if (wasCorrection) {
-        const { error: updateError } = await db
-          .from('courses')
-          .update({ ...rowPayload, updated_at: new Date().toISOString() })
-          .eq('id', courseId);
-        if (updateError) throw updateError;
-
-        const { error: logError } = await db.from('course_corrections').insert(
-          corrections.map((c) => ({
-            course_id: courseId,
-            corrected_by: user.id,
-            field: c.field,
-            old_value: c.oldValue,
-            new_value: c.newValue,
-          }))
-        );
-        if (logError) throw logError;
-      }
-    } else {
-      const { data: inserted, error: insertError } = await db
-        .from('courses')
-        .insert({
-          university_id: universityId,
-          department_id: departmentId,
-          code: draft.code,
-          ...rowPayload,
-          source: 'ai_extracted',
-          confirmed_by: user.id,
-        })
-        .select('id')
-        .single();
-      if (insertError) throw insertError;
-      courseId = inserted.id;
-    }
-
-    // Replace this course's meeting times wholesale rather than diffing —
-    // simpler and correct either way, since the confirm screen always
-    // submits the full current set of slots, not a delta.
-    const { error: deleteSlotsError } = await db.from('course_time_slots').delete().eq('course_id', courseId);
-    if (deleteSlotsError) throw deleteSlotsError;
-
-    const { error: insertSlotsError } = await db.from('course_time_slots').insert(
-      draft.timeSlots.map((slot) => ({
-        course_id: courseId,
-        day: slot.day,
-        start_time: slot.start,
-        end_time: slot.end,
-      }))
-    );
-    if (insertSlotsError) throw insertSlotsError;
+    const courseId = (result as { course_id: string }).course_id;
 
     return jsonResponse({ courseId, wasCorrection });
   } catch (err) {

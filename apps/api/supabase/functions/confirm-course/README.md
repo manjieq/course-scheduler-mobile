@@ -13,15 +13,22 @@ draft (`category` is the one field the AI never fills in — see
 as the extract-* functions, even though the client just received them a
 moment ago.
 
-Upserts on `(university_id, department_id, code)`:
+Computes the correction diff in TS (`_shared/corrections.ts`), then commits
+everything in one call to the `confirm_course_write()` Postgres function
+(`0010_confirm_course_atomic.sql`) so the upsert, the correction log, and
+the full `course_time_slots` replace all happen in a single transaction —
+either all of it lands or none of it does:
 - New code → insert, `source: 'ai_extracted'`, `confirmed_by` set to the
   caller.
 - Existing code → update in place and log one `course_corrections` row per
   changed field (see CLAUDE.md: "Corrections propagate, with an audit
   trail" — no per-user forking/versioning in v1).
-
-Then replaces that course's `course_time_slots` wholesale (the confirm
-screen always submits the full current set, not a delta).
+- Either way, that course's `course_time_slots` are replaced wholesale (the
+  confirm screen always submits the full current set, not a delta) — this
+  used to be a separate delete-then-insert pair of calls from the function
+  itself, which could leave a course with zero meeting times if the insert
+  failed right after the delete succeeded; now it's atomic with the rest of
+  the write.
 
 Returns `{ courseId, wasCorrection }` so the client can toast accordingly,
 then adds `courseId` to the user's live schedule via the existing
