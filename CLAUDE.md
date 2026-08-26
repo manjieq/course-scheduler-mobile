@@ -205,6 +205,26 @@ deletes or restructures it; this is a brand-new, separate project by design
    that gap end to end. See git history around the Phase 5 commits for the
    fuller detail.)
 6. **Polish** — theming, empty/error states, comparison-view refinement.
+   ✅ done (theming landed first as a per-user override on top of
+   NativeWind's OS-driven `dark:` classes — see `lib/theme.ts`. Empty
+   states turned out to already be in decent shape everywhere; the real
+   gap was error states — Scan/Chat/Confirm already `Alert.alert`'d on
+   failure, but every other query and mutation in the app failed silently
+   (a failed add-to-cart or loadout save just did nothing; a failed
+   departments/courses/loadouts fetch rendered indistinguishably from a
+   real empty state). `lib/errors.ts`'s `getErrorMessage()` and
+   `components/common/ErrorState.tsx` close that gap consistently across
+   Courses/Schedule/Loadouts and the Settings edits. Comparison-view
+   refinement was scoped with the user into three things:
+   `packages/shared-types/src/compare.ts`'s `sharedCourseIds()` now drives
+   a dashed-outline "differs from the rest" treatment in both comparison
+   views; the portrait Loadouts tab's `LoadoutComparisonView` switched from
+   stacking full `ScheduleGrid`s vertically (never actually side by side)
+   to reusing landscape's compact `ComparisonPanel` in a horizontal row, so
+   portrait gets a real side-by-side without rotating; and comparison is
+   now capped at 4 loadouts at once (`MAX_COMPARE`), since panels stop
+   being readable past that regardless of orientation. See git history
+   around the Phase 6 commits for the fuller detail.)
 7. **Testing hardening + EAS build prep**.
 
 Each phase has a concrete checkpoint — see the approved plan this repo
