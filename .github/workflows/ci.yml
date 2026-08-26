@@ -106,9 +106,17 @@ jobs:
       # Exports API_URL/ANON_KEY (among others) as env vars for the next
       # step — see apps/api/tests/rls.test.ts's own guard/error message if
       # these default names ever drift in a future CLI version.
+      #
+      # `-o env` emits dotenv-style `KEY="value"` lines meant to be sourced
+      # by a shell, which strips the quotes itself — $GITHUB_ENV does not,
+      # it takes everything after the first `=` as the literal value. Piped
+      # straight through, ANON_KEY/API_URL would come out as e.g.
+      # `"http://127.0.0.1:54321"` (quote characters included), which
+      # supabase-js's own URL validation then rejects outright. Strip one
+      # layer of wrapping double quotes per line before appending.
       - name: Export local Supabase connection details
         working-directory: apps/api
-        run: supabase status -o env >> "$GITHUB_ENV"
+        run: supabase status -o env | sed -E 's/^([A-Z_]+)="(.*)"$/\1=\2/' >> "$GITHUB_ENV"
 
       - name: Run RLS test suite
         working-directory: apps/api
