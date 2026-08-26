@@ -49,7 +49,7 @@ export default function ScanScreen() {
   return (
     <View className="flex-1 gap-4 bg-white p-4 dark:bg-neutral-950">
       <Text className="text-sm text-neutral-500 dark:text-neutral-400">
-        Take or choose a photo of your portal's course listing. Nothing is saved until you confirm it on the next
+        Take or choose a photo of your portal&apos;s course listing. Nothing is saved until you confirm it on the next
         screen.
       </Text>
 
