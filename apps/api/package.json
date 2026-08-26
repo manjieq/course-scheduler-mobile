@@ -3,6 +3,12 @@
   "private": true,
   "scripts": {
     "lint": "echo \"(Deno edge functions - not wired into npm/turbo lint yet, run `deno lint` manually under apps/api/supabase/functions)\"",
-    "typecheck": "echo \"(Deno edge functions - not wired into npm/turbo typecheck yet, run `deno check` manually under apps/api/supabase/functions)\""
+    "typecheck": "echo \"(Deno edge functions - not wired into npm/turbo typecheck yet, run `deno check` manually under apps/api/supabase/functions)\"",
+    "test:rls": "vitest run"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
   }
 }

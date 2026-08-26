@@ -12,6 +12,9 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
+    "test:rls": {
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true
