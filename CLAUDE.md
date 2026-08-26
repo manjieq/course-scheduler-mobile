@@ -225,7 +225,49 @@ deletes or restructures it; this is a brand-new, separate project by design
    now capped at 4 loadouts at once (`MAX_COMPARE`), since panels stop
    being readable past that regardless of orientation. See git history
    around the Phase 6 commits for the fuller detail.)
-7. **Testing hardening + EAS build prep**.
+7. **Testing hardening + EAS build prep**. ✅ config/coverage work done;
+   the actual EAS account link is the one piece left, and it's the user's
+   to do (scoped together, see below for why). `apps/mobile` had zero
+   automated tests and no framework at all — `jest-expo` +
+   `@testing-library/react-native` are now wired up via `package.json`'s
+   own `"jest"` block, with four representative tests (a pure lib
+   function, a simple component, one with conditional styling, one with
+   a real empty-state branch) establishing the pattern rather than
+   chasing full coverage. `apps/api/tests/rls.test.ts` (the ownership-
+   boundary suite from Phase 6) had known gaps — `departments`' self-serve
+   insert policy, `course_time_slots`/`course_corrections`' public-read-
+   no-direct-write boundary, and several untested delete/update paths
+   (`schedule_courses`, `loadouts`, `loadout_courses`, `schedules`) — all
+   closed. EAS build prep: `app.json` had Expo's scaffold defaults (name/
+   slug `"mobile"`, no bundle identifier) — renamed to "Course Scheduler"
+   with a placeholder `com.coursescheduler.app` bundle id/package (a real
+   reverse-DNS identifier is a domain decision, not something to invent —
+   replace before any real store submission), plus `expo-image-picker`
+   permission strings and an `expo-splash-screen` config wiring up the
+   already-on-disk-but-previously-unreferenced splash asset (still stock
+   template artwork — real branded icon/splash is a separate design task).
+   `eas.json` is new, with per-profile `environment` fields pointing at
+   EAS-dashboard-managed Environments rather than committing real
+   `EXPO_PUBLIC_*` values to a file that ships in git. Running
+   `npx expo-doctor` as part of verifying this also surfaced two real
+   peer-dependency gaps (`expo-constants`, `react-native-worklets`) that
+   would have crashed the app outside Expo Go — fixed alongside the config
+   work since they're exactly what EAS build prep exists to catch. Linking
+   an actual EAS project (`eas login` / `eas init`, which populates
+   `extra.eas.projectId`) needs the user's own interactive Expo account
+   login — left as a documented handoff rather than attempted. Verifying
+   the RLS additions surfaced two pre-existing, unrelated CI breaks (both
+   predating this phase, from a pnpm version bump): `.github/workflows/
+   ci.yml` had `node-version: 20` while `pnpm@11.22.0` requires Node
+   ≥22.13 — every job failed before `pnpm install` could even run — and
+   separately, `supabase status -o env`'s quoted output was landing in
+   `$GITHUB_ENV` with the literal quote characters still attached
+   (`$GITHUB_ENV` doesn't strip them the way a sourcing shell would),
+   making `API_URL` an invalid URL to `@supabase/supabase-js`. Both fixed;
+   see git history around the Phase 7 commits for the fuller trail — this
+   is also why the RLS additions above could only be verified via CI
+   rather than locally (no Docker in this environment, and the local
+   Supabase stack needs it).
 
 Each phase has a concrete checkpoint — see the approved plan this repo
 was scaffolded from for the full detail if needed.
