@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 
 import { AddDepartmentForm } from '../../components/courses/AddDepartmentForm';
 import { CategoryTabs } from '../../components/courses/CategoryTabs';
 import type { CourseCategoryTab } from '../../components/courses/CategoryTabs';
 import { CourseList } from '../../components/courses/CourseList';
+import { ErrorState } from '../../components/common/ErrorState';
 import { DepartmentSelector } from '../../components/courses/DepartmentSelector';
 import { useAuth } from '../../lib/auth-context';
 import { useDepartmentCourses, useDepartments } from '../../lib/catalog';
+import { getErrorMessage } from '../../lib/errors';
 import { useCartMutations, useSchedule, useScheduleCourses } from '../../lib/schedule-data';
 import { supabase } from '../../lib/supabase';
 
@@ -27,8 +29,19 @@ export default function CoursesScreen() {
   const [isSwitchingDepartment, setIsSwitchingDepartment] = useState(false);
   const [activeCategory, setActiveCategory] = useState<CourseCategoryTab>('major');
 
-  const { data: departments = [], isLoading: isLoadingDepartments } = useDepartments(universityId);
-  const { courses, colorMap, isLoading: isLoadingCourses } = useDepartmentCourses(departmentId);
+  const {
+    data: departments = [],
+    isLoading: isLoadingDepartments,
+    isError: isDepartmentsError,
+    refetch: refetchDepartments,
+  } = useDepartments(universityId);
+  const {
+    courses,
+    colorMap,
+    isLoading: isLoadingCourses,
+    isError: isCoursesError,
+    refetch: refetchCourses,
+  } = useDepartmentCourses(departmentId);
   const { data: scheduleId } = useSchedule(userId, universityId, departmentId);
   const { data: scheduleCourses = [] } = useScheduleCourses(scheduleId);
   const { addToCart, removeFromCart } = useCartMutations(scheduleId);
@@ -46,7 +59,7 @@ export default function CoursesScreen() {
     const { error } = await supabase.from('profiles').update({ department_id: id }).eq('id', userId);
     setIsSwitchingDepartment(false);
     if (error) {
-      console.error('Failed to switch department', error);
+      Alert.alert('Could not switch department', getErrorMessage(error));
       return;
     }
     await refreshProfile();
@@ -57,6 +70,8 @@ export default function CoursesScreen() {
       <ScrollView className="flex-1 p-4" contentContainerClassName="gap-3 pb-10">
         {isLoadingDepartments ? (
           <ActivityIndicator />
+        ) : isDepartmentsError ? (
+          <ErrorState message="Couldn't load departments." onRetry={refetchDepartments} />
         ) : departments.length === 0 ? (
           <Text className="text-sm text-neutral-500 dark:text-neutral-400">
             No departments are set up for your university yet.
@@ -78,6 +93,8 @@ export default function CoursesScreen() {
           </Text>
         ) : isLoadingCourses ? (
           <ActivityIndicator />
+        ) : isCoursesError ? (
+          <ErrorState message="Couldn't load courses." onRetry={refetchCourses} />
         ) : (
           <>
             <CategoryTabs active={activeCategory} onChange={setActiveCategory} />

@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert } from 'react-native';
 
+import { getErrorMessage } from './errors';
 import { supabase } from './supabase';
 
 // Cart-equivalent: schedules/schedule_courses are the DB-backed replacement
@@ -96,6 +98,7 @@ export function useCartMutations(scheduleId: string | undefined) {
       if (error) throw error;
     },
     onSuccess: invalidate,
+    onError: (err) => Alert.alert('Could not add course', getErrorMessage(err)),
   });
 
   const removeFromCart = useMutation({
@@ -108,6 +111,7 @@ export function useCartMutations(scheduleId: string | undefined) {
       if (error) throw error;
     },
     onSuccess: invalidate,
+    onError: (err) => Alert.alert('Could not remove course', getErrorMessage(err)),
   });
 
   const toggleIncluded = useMutation({
@@ -120,6 +124,7 @@ export function useCartMutations(scheduleId: string | undefined) {
       if (error) throw error;
     },
     onSuccess: invalidate,
+    onError: (err) => Alert.alert('Could not update course', getErrorMessage(err)),
   });
 
   return { addToCart, removeFromCart, toggleIncluded };

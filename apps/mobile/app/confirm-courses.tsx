@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'rea
 import { CourseDraftForm, draftFromExtracted, toConfirmInput } from '../components/extraction/CourseDraftForm';
 import type { EditableCourseDraft } from '../components/extraction/CourseDraftForm';
 import { useAuth } from '../lib/auth-context';
+import { getErrorMessage } from '../lib/errors';
 import { useConfirmCourse } from '../lib/extraction';
 import { useExtractionReview } from '../lib/extraction-review-context';
 import { useCartMutations, useSchedule } from '../lib/schedule-data';
@@ -85,7 +86,7 @@ export default function ConfirmCoursesScreen() {
         );
       }
     } catch (err) {
-      Alert.alert('Confirm failed', err instanceof Error ? err.message : 'Something went wrong.');
+      Alert.alert('Confirm failed', getErrorMessage(err));
     }
   }
 

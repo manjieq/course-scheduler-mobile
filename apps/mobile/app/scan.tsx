@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, Text, View } from 'react-native';
 
+import { getErrorMessage } from '../lib/errors';
 import { useExtractionReview } from '../lib/extraction-review-context';
 import { useExtractCourseScan } from '../lib/extraction';
 
@@ -42,7 +43,7 @@ export default function ScanScreen() {
       setPending(extraction);
       router.replace('/confirm-courses');
     } catch (err) {
-      Alert.alert('Extraction failed', err instanceof Error ? err.message : 'Something went wrong.');
+      Alert.alert('Extraction failed', getErrorMessage(err));
     }
   }
 

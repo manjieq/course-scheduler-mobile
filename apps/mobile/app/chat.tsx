@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 
+import { getErrorMessage } from '../lib/errors';
 import { useExtractionReview } from '../lib/extraction-review-context';
 import { useExtractCourseChat } from '../lib/extraction';
 
@@ -21,7 +22,7 @@ export default function ChatScreen() {
       setPending(extraction);
       router.replace('/confirm-courses');
     } catch (err) {
-      Alert.alert('Extraction failed', err instanceof Error ? err.message : 'Something went wrong.');
+      Alert.alert('Extraction failed', getErrorMessage(err));
     }
   }
 

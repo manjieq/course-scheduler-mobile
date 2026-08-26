@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { ErrorState } from '../../components/common/ErrorState';
 import { LoadoutComparisonView } from '../../components/loadouts/LoadoutComparisonView';
 import { LoadoutList } from '../../components/loadouts/LoadoutList';
 import { useAuth } from '../../lib/auth-context';
@@ -28,7 +29,11 @@ export default function LoadoutsScreen() {
   const { data: university } = useUniversity(universityId);
   const { colorMap, coursesById } = useDepartmentCourses(departmentId);
   const { data: scheduleId } = useSchedule(userId, universityId, departmentId);
-  const { data: loadouts = [] } = useLoadouts(userId, departmentId);
+  const {
+    data: loadouts = [],
+    isError: isLoadoutsError,
+    refetch: refetchLoadouts,
+  } = useLoadouts(userId, departmentId);
   const { deleteLoadout, loadLoadout } = useLoadoutMutations(userId, universityId, departmentId, scheduleId);
 
   const colorFor = (courseId: string) => colorMap.get(courseId) ?? '#999999';
@@ -78,17 +83,21 @@ export default function LoadoutsScreen() {
         <Text className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
           Tick two or more below to compare them side by side.
         </Text>
-        <LoadoutList
-          loadouts={loadouts}
-          coursesById={coursesById}
-          maxCredits={maxCredits}
-          colorFor={colorFor}
-          compareSelectedIds={compareIds}
-          pendingId={pendingLoadoutId}
-          onLoad={handleLoad}
-          onDelete={handleDelete}
-          onToggleCompare={toggleCompare}
-        />
+        {isLoadoutsError ? (
+          <ErrorState message="Couldn't load your saved loadouts." onRetry={refetchLoadouts} />
+        ) : (
+          <LoadoutList
+            loadouts={loadouts}
+            coursesById={coursesById}
+            maxCredits={maxCredits}
+            colorFor={colorFor}
+            compareSelectedIds={compareIds}
+            pendingId={pendingLoadoutId}
+            onLoad={handleLoad}
+            onDelete={handleDelete}
+            onToggleCompare={toggleCompare}
+          />
+        )}
       </View>
 
       {comparedLoadouts.length >= 2 && (

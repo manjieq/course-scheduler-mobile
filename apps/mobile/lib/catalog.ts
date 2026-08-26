@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { Alert } from 'react-native';
 
 import { buildColorMap } from '@course-scheduler/shared-types';
 import type { Course, DayOfWeek, Department, University } from '@course-scheduler/shared-types';
 
+import { getErrorMessage } from './errors';
 import { supabase } from './supabase';
 
 // Read-side of the shared catalog (universities/departments/courses are
@@ -56,6 +58,7 @@ export function useUpdateCreditCap(universityId: string | null | undefined) {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['university', universityId] }),
+    onError: (err) => Alert.alert('Could not update credit cap', getErrorMessage(err)),
   });
 }
 
@@ -74,6 +77,7 @@ export function useUpdateShortName(universityId: string | null | undefined) {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['university', universityId] }),
+    onError: (err) => Alert.alert('Could not update short name', getErrorMessage(err)),
   });
 }
 

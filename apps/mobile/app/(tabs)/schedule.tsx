@@ -3,6 +3,7 @@ import { ActivityIndicator, ScrollView, Text, View, type LayoutChangeEvent } fro
 
 import { findConflicts, sumCredits } from '@course-scheduler/shared-types';
 
+import { ErrorState } from '../../components/common/ErrorState';
 import { LoadoutSaveForm } from '../../components/loadouts/LoadoutSaveForm';
 import { ConflictWarningBanner } from '../../components/schedule/ConflictWarningBanner';
 import { IncludedCoursesStrip } from '../../components/schedule/IncludedCoursesStrip';
@@ -24,7 +25,13 @@ export default function ScheduleScreen() {
   const universityId = profile?.university_id ?? null;
   const departmentId = profile?.department_id ?? null;
 
-  const { courses, colorMap, isLoading: isLoadingCourses } = useDepartmentCourses(departmentId);
+  const {
+    courses,
+    colorMap,
+    isLoading: isLoadingCourses,
+    isError: isCoursesError,
+    refetch: refetchCourses,
+  } = useDepartmentCourses(departmentId);
   const { data: scheduleId } = useSchedule(userId, universityId, departmentId);
   const { data: scheduleCourses = [] } = useScheduleCourses(scheduleId);
   const { toggleIncluded } = useCartMutations(scheduleId);
@@ -86,6 +93,8 @@ export default function ScheduleScreen() {
       <ScrollView className="px-4" contentContainerClassName="gap-4 pb-10">
         {isLoadingCourses ? (
           <ActivityIndicator />
+        ) : isCoursesError ? (
+          <ErrorState message="Couldn't load courses." onRetry={refetchCourses} />
         ) : (
           <ScheduleGrid
             courses={includedCourses}

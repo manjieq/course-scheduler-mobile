@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Alert } from 'react-native';
 
+import { getErrorMessage } from './errors';
 import { supabase } from './supabase';
 
 // Immutable point-in-time snapshots (see CLAUDE.md): saving copies the
@@ -93,6 +95,7 @@ export function useLoadoutMutations(
       }
     },
     onSuccess: invalidateLoadouts,
+    onError: (err) => Alert.alert('Could not save loadout', getErrorMessage(err)),
   });
 
   // DELETE_LOADOUT — cascades to loadout_courses via the FK.
@@ -102,6 +105,7 @@ export function useLoadoutMutations(
       if (error) throw error;
     },
     onSuccess: invalidateLoadouts,
+    onError: (err) => Alert.alert('Could not delete loadout', getErrorMessage(err)),
   });
 
   // LOAD_LOADOUT: per CLAUDE.md, this *upserts* the loadout's courses back
@@ -121,6 +125,7 @@ export function useLoadoutMutations(
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['schedule-courses', scheduleId] }),
+    onError: (err) => Alert.alert('Could not load loadout', getErrorMessage(err)),
   });
 
   return { saveLoadout, deleteLoadout, loadLoadout };
