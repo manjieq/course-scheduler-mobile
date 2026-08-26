@@ -28,9 +28,14 @@ jobs:
       # rather than hardcoding one here, so the two can't drift apart.
       - uses: pnpm/action-setup@v4
 
+      # pnpm 11's own CLI needs Node >=22.13 to run at all (unrelated to
+      # this repo's own `engines.node` — that's the minimum for the repo's
+      # code, this is what the package manager binary itself requires) —
+      # node-version 20 here made `pnpm install` fail before it could even
+      # read package.json, on every job in this file.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -68,9 +73,14 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      # pnpm 11's own CLI needs Node >=22.13 to run at all (unrelated to
+      # this repo's own `engines.node` — that's the minimum for the repo's
+      # code, this is what the package manager binary itself requires) —
+      # node-version 20 here made `pnpm install` fail before it could even
+      # read package.json, on every job in this file.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
