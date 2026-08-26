@@ -9,8 +9,9 @@ interface LoadoutListProps {
   loadouts: LoadoutRow[];
   coursesById: Map<string, Course>;
   maxCredits: number;
-  colorFor: (courseId: string) => string;
   compareSelectedIds: Set<string>;
+  /** True once compareSelectedIds is at the caller's cap — dims (but doesn't disable the tap on, so the Alert explaining the cap still fires) any not-yet-selected loadout's Compare checkbox. */
+  compareLimitReached?: boolean;
   pendingId?: string | null;
   onLoad: (loadout: LoadoutRow) => void;
   onDelete: (id: string) => void;
@@ -21,8 +22,8 @@ export function LoadoutList({
   loadouts,
   coursesById,
   maxCredits,
-  colorFor,
   compareSelectedIds,
+  compareLimitReached = false,
   pendingId,
   onLoad,
   onDelete,
@@ -47,7 +48,6 @@ export function LoadoutList({
             loadout={loadout}
             courses={courses}
             maxCredits={maxCredits}
-            colorFor={colorFor}
             actions={
               <View className="flex-row flex-wrap items-center gap-4 pt-1">
                 <Pressable onPress={() => onLoad(loadout)} disabled={pendingId === loadout.id} hitSlop={8}>
@@ -60,7 +60,11 @@ export function LoadoutList({
                 <Pressable onPress={() => onDelete(loadout.id)} hitSlop={8}>
                   <Text className="text-sm font-medium text-red-600 dark:text-red-400">Delete</Text>
                 </Pressable>
-                <Pressable onPress={() => onToggleCompare(loadout.id)} className="flex-row items-center gap-1.5" hitSlop={8}>
+                <Pressable
+                  onPress={() => onToggleCompare(loadout.id)}
+                  className={`flex-row items-center gap-1.5 ${!compared && compareLimitReached ? 'opacity-40' : ''}`}
+                  hitSlop={8}
+                >
                   <View
                     className={`h-4 w-4 items-center justify-center rounded border ${
                       compared

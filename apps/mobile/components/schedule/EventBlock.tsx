@@ -17,13 +17,28 @@ interface EventBlockProps {
   color: string;
   conflicted: boolean;
   position: EventBlockPosition;
+  /**
+   * True when this course isn't shared by every loadout in the current
+   * comparison (see packages/shared-types's sharedCourseIds) — drawn with a
+   * dashed instead of solid border so a reader scanning ComparisonPanel's
+   * grids can immediately spot what differs, without having to line up two
+   * course lists by eye. Ignored outside a comparison context (ScheduleGrid
+   * never passes it). conflicted still wins if a block is somehow both —
+   * a real time clash is the more urgent thing to flag.
+   */
+  differs?: boolean;
 }
 
-export function EventBlock({ course, slot, color, conflicted, position }: EventBlockProps) {
+export function EventBlock({ course, slot, color, conflicted, position, differs = false }: EventBlockProps) {
   const textColor = getContrastText(color);
+  const borderClass = conflicted
+    ? 'border-2 border-red-500'
+    : differs
+      ? 'border-2 border-dashed border-neutral-900 dark:border-neutral-50'
+      : '';
   return (
     <View
-      className={`absolute overflow-hidden rounded-md px-1.5 py-1 ${conflicted ? 'border-2 border-red-500' : ''}`}
+      className={`absolute overflow-hidden rounded-md px-1.5 py-1 ${borderClass}`}
       style={{ ...position, backgroundColor: color }}
     >
       <Text style={{ color: textColor }} className="text-[11px] font-semibold" numberOfLines={1}>

@@ -30,6 +30,8 @@ interface ComparisonPanelProps {
   days: DayOfWeek[];
   /** This panel's total available height (name/credits block + grid), if known — see app/loadout-compare.tsx's measured panelsAreaHeight. Omit to always use DEFAULT_HOUR_PX. */
   maxHeight?: number;
+  /** Course ids shared by every loadout in the current comparison (see packages/shared-types's sharedCourseIds) — anything in this panel's courses but not in this set gets EventBlock's dashed "differs" treatment. Omit (or pass an empty set) to skip highlighting entirely, e.g. when only one loadout is shown. */
+  sharedCourseIds?: Set<string>;
 }
 
 interface EventEntry {
@@ -70,6 +72,7 @@ export function ComparisonPanel({
   endHour,
   days,
   maxHeight,
+  sharedCourseIds,
 }: ComparisonPanelProps) {
   const conflicts = findConflicts(courses);
   const overLimit = totalCredits > maxCredits;
@@ -179,6 +182,7 @@ export function ComparisonPanel({
                       slot={item.data.slot}
                       color={colorFor(item.data.course.id)}
                       conflicted={isConflicted(item.data.slot)}
+                      differs={sharedCourseIds ? !sharedCourseIds.has(item.data.course.id) : false}
                       position={{ top, height, left: `${leftPct}%`, width: `${widthPct}%` }}
                     />
                   );

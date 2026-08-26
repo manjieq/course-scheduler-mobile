@@ -4,8 +4,6 @@ import { Text, View } from 'react-native';
 import { findConflicts } from '@course-scheduler/shared-types';
 import type { Course } from '@course-scheduler/shared-types';
 
-import { ScheduleGrid } from '../schedule/ScheduleGrid';
-
 interface LoadoutCardData {
   id: string;
   name: string;
@@ -17,12 +15,17 @@ interface LoadoutCardProps {
   loadout: LoadoutCardData;
   courses: Course[];
   maxCredits: number;
-  colorFor: (courseId: string) => string;
-  showSchedule?: boolean;
   actions?: ReactNode;
 }
 
-export function LoadoutCard({ loadout, courses, maxCredits, colorFor, showSchedule = false, actions }: LoadoutCardProps) {
+// Its own full schedule grid used to be an option here (a showSchedule
+// prop, plus a colorFor prop to drive it), used only by
+// LoadoutComparisonView's old vertically-stacked-cards approach to
+// comparison — removed once that view switched to ComparisonPanel's
+// compact side-by-side grids instead (see LoadoutComparisonView.tsx).
+// LoadoutList (the Loadouts tab's own browse list) is this card's only
+// remaining caller, and never wanted the full grid inline.
+export function LoadoutCard({ loadout, courses, maxCredits, actions }: LoadoutCardProps) {
   const conflicts = findConflicts(courses);
   const overLimit = loadout.totalCredits > maxCredits;
 
@@ -54,7 +57,6 @@ export function LoadoutCard({ loadout, courses, maxCredits, colorFor, showSchedu
           </Text>
         ))}
       </View>
-      {showSchedule && <ScheduleGrid courses={courses} colorFor={colorFor} conflicts={conflicts} />}
       {actions}
     </View>
   );

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ErrorState } from '../../components/common/ErrorState';
 import { LoadoutComparisonView } from '../../components/loadouts/LoadoutComparisonView';
@@ -10,6 +10,16 @@ import { useDepartmentCourses, useUniversity } from '../../lib/catalog';
 import type { LoadoutRow } from '../../lib/loadouts';
 import { useLoadoutMutations, useLoadouts } from '../../lib/loadouts';
 import { useSchedule } from '../../lib/schedule-data';
+
+// Beyond this, side-by-side comparison (both this tab's own compact
+// LoadoutComparisonView and the landscape app/loadout-compare.tsx it links
+// to) stops being readable — panels just get squeezed past the point a
+// schedule grid means anything. Picked to comfortably fit 4 even columns at
+// ComparisonPanel's MIN_PANEL_WIDTH-ish floor on a typical landscape phone
+// width; both comparison views already fall back to horizontal scroll below
+// that floor regardless, so this cap is about readability, not a technical
+// limit either view actually has.
+const MAX_COMPARE = 4;
 
 // Loadouts' own tab — browsing, loading, deleting, and comparing saved
 // loadouts. Saving a new one happens on the Schedule tab now (next to the
@@ -41,10 +51,16 @@ export default function LoadoutsScreen() {
 
   function toggleCompare(id: string) {
     setCompareIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+      if (prev.has(id)) {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      }
+      if (prev.size >= MAX_COMPARE) {
+        Alert.alert('Comparison limit reached', `You can compare up to ${MAX_COMPARE} loadouts at once — untick one first.`);
+        return prev;
+      }
+      return new Set(prev).add(id);
     });
   }
 
@@ -81,7 +97,7 @@ export default function LoadoutsScreen() {
       <View>
         <Text className="mb-1 text-base font-semibold text-neutral-900 dark:text-neutral-50">Saved loadouts</Text>
         <Text className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
-          Tick two or more below to compare them side by side.
+          Tick two or more below to compare them side by side (up to {MAX_COMPARE} at once).
         </Text>
         {isLoadoutsError ? (
           <ErrorState message="Couldn't load your saved loadouts." onRetry={refetchLoadouts} />
@@ -90,8 +106,8 @@ export default function LoadoutsScreen() {
             loadouts={loadouts}
             coursesById={coursesById}
             maxCredits={maxCredits}
-            colorFor={colorFor}
             compareSelectedIds={compareIds}
+            compareLimitReached={compareIds.size >= MAX_COMPARE}
             pendingId={pendingLoadoutId}
             onLoad={handleLoad}
             onDelete={handleDelete}
@@ -110,9 +126,9 @@ export default function LoadoutsScreen() {
           }
           className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800"
         >
-          <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">View side by side</Text>
+          <Text className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">Open full-screen comparison</Text>
           <Text className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-            Rotate your phone sideways to compare full schedules side by side
+            Rotate your phone sideways for a bigger, easier-to-read version of the comparison below
           </Text>
         </Pressable>
       )}

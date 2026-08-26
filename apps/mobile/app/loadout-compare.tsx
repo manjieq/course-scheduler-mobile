@@ -3,12 +3,10 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 
-import { computeScheduleDays, computeScheduleHourRange } from '@course-scheduler/shared-types';
-import type { Course } from '@course-scheduler/shared-types';
-
 import { ComparisonPanel } from '../components/loadouts/ComparisonPanel';
 import { useAuth } from '../lib/auth-context';
 import { useDepartmentCourses, useUniversity } from '../lib/catalog';
+import { useComparisonLayout } from '../lib/loadout-compare';
 import { useLoadouts } from '../lib/loadouts';
 
 const MIN_PANEL_WIDTH = 260;
@@ -79,27 +77,13 @@ export default function LoadoutCompareScreen() {
   const fitsEven = evenWidth >= MIN_PANEL_WIDTH;
   const panelWidth = fitsEven ? evenWidth : MIN_PANEL_WIDTH;
 
-  const loadoutCourses = useMemo(
-    () =>
-      comparedLoadouts.map((loadout) =>
-        loadout.courseIds.map((id) => coursesById.get(id)).filter((c): c is Course => Boolean(c))
-      ),
-    [comparedLoadouts, coursesById]
+  // One shared hour range and day-column set across every panel (see
+  // ComparisonPanel.tsx's comment on why), plus which courses are actually
+  // common to every compared loadout — see lib/loadout-compare.ts.
+  const { loadoutCourses, startHour, endHour, days, sharedCourseIds } = useComparisonLayout(
+    comparedLoadouts,
+    coursesById
   );
-
-  // One shared hour range, and one shared set of day columns (Mon-Fri,
-  // plus Sat/Sun only if a compared loadout actually meets then), for
-  // every panel — same fix ScheduleGrid got for the same bug (see
-  // ComparisonPanel.tsx's comment), computed once across *all* compared
-  // loadouts rather than per panel so a night class or weekend meeting in
-  // only one of them doesn't leave the panels' axes misaligned with each
-  // other.
-  const allComparedCourses = useMemo(() => loadoutCourses.flat(), [loadoutCourses]);
-  const { startHour, endHour } = useMemo(
-    () => computeScheduleHourRange(allComparedCourses),
-    [allComparedCourses]
-  );
-  const days = useMemo(() => computeScheduleDays(allComparedCourses), [allComparedCourses]);
 
   // Measured (not estimated), same approach as the Schedule tab's own grid
   // — see schedule.tsx's identical comment. This View is already flex-1,
@@ -122,21 +106,30 @@ export default function LoadoutCompareScreen() {
         endHour={endHour}
         days={days}
         maxHeight={panelsAreaHeight || undefined}
+        sharedCourseIds={sharedCourseIds}
       />
     ));
   }
 
   return (
     <View className="flex-1 bg-white dark:bg-neutral-950">
-      <View className="flex-row items-center justify-between px-4 pb-2 pt-3">
-        <Text className="text-sm font-bold text-neutral-900 dark:text-neutral-50">
-          Comparing {count} loadout{count === 1 ? '' : 's'}
-        </Text>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text className="text-xs text-neutral-500 dark:text-neutral-400">
-            {isLandscape ? 'Rotate back, or tap Done' : 'Done'}
+      <View className="gap-1 px-4 pb-2 pt-3">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-sm font-bold text-neutral-900 dark:text-neutral-50">
+            Comparing {count} loadout{count === 1 ? '' : 's'}
           </Text>
-        </Pressable>
+          <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Text className="text-xs text-neutral-500 dark:text-neutral-400">
+              {isLandscape ? 'Rotate back, or tap Done' : 'Done'}
+            </Text>
+          </Pressable>
+        </View>
+        {isLandscape && count >= 2 && (
+          <Text className="text-[11px] text-neutral-500 dark:text-neutral-400">
+            Dashed outline = not in every compared loadout ({sharedCourseIds.size} course
+            {sharedCourseIds.size === 1 ? '' : 's'} shared by all)
+          </Text>
+        )}
       </View>
 
       {!isLandscape ? (
