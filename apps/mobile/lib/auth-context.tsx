@@ -51,16 +51,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
 
     async function init() {
-      const {
-        data: { session: initialSession },
-      } = await supabase.auth.getSession();
-      if (!isMounted) return;
+      try {
+        const {
+          data: { session: initialSession },
+        } = await supabase.auth.getSession();
+        if (!isMounted) return;
 
-      setSession(initialSession);
-      if (initialSession) {
-        setProfile(await fetchProfile(initialSession.user.id));
+        setSession(initialSession);
+        if (initialSession) {
+          setProfile(await fetchProfile(initialSession.user.id));
+        }
+      } catch (error) {
+        // A network blip or a stale/corrupted stored session must not leave
+        // the app stuck behind app/_layout.tsx's loading spinner forever —
+        // fall back to signed-out and let the routing gate send the user to
+        // sign-in, same as any other failed session restore. Mirrors the
+        // .finally() safety lib/theme.ts's useThemeRestore already has.
+        console.error('Session restore failed', error);
+        if (!isMounted) return;
+        setSession(null);
+        setProfile(null);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
-      setIsLoading(false);
     }
     init();
 
@@ -69,7 +82,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       if (!isMounted) return;
       setSession(nextSession);
-      setProfile(nextSession ? await fetchProfile(nextSession.user.id) : null);
+      try {
+        setProfile(nextSession ? await fetchProfile(nextSession.user.id) : null);
+      } catch (error) {
+        console.error('Profile fetch on auth change failed', error);
+        if (isMounted) setProfile(null);
+      }
     });
 
     return () => {
