@@ -25,6 +25,35 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// supabase-js's GoTrueClient can hang indefinitely rather than reject — seen
+// in practice as a getSession()/token-refresh call that never resolves
+// (reports elsewhere tie this to its internal cross-instance lock getting
+// stuck, e.g. after a dev-client Fast Refresh reload leaves a prior client
+// instance's lock unreleased). A try/catch alone doesn't help a promise
+// that never settles at all, so every call that blocks app/_layout.tsx's
+// loading spinner is raced against a hard timeout — past it we give up and
+// fall back to signed-out rather than spin forever.
+const AUTH_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${AUTH_TIMEOUT_MS}ms`)),
+      AUTH_TIMEOUT_MS
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
@@ -54,12 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const {
           data: { session: initialSession },
-        } = await supabase.auth.getSession();
+        } = await withTimeout(supabase.auth.getSession(), 'getSession');
         if (!isMounted) return;
 
         setSession(initialSession);
         if (initialSession) {
-          setProfile(await fetchProfile(initialSession.user.id));
+          setProfile(await withTimeout(fetchProfile(initialSession.user.id), 'fetchProfile'));
         }
       } catch (error) {
         // A network blip or a stale/corrupted stored session must not leave
@@ -83,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isMounted) return;
       setSession(nextSession);
       try {
-        setProfile(nextSession ? await fetchProfile(nextSession.user.id) : null);
+        setProfile(nextSession ? await withTimeout(fetchProfile(nextSession.user.id), 'fetchProfile') : null);
       } catch (error) {
         console.error('Profile fetch on auth change failed', error);
         if (isMounted) setProfile(null);
