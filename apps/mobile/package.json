@@ -9,6 +9,7 @@
     "@tanstack/react-query": "^5.101.4",
     "expo": "~54.0.37",
     "expo-constants": "~18.0.14",
+    "expo-dev-client": "~6.0.21",
     "expo-image-picker": "~17.0.11",
     "expo-linking": "~8.0.12",
     "expo-router": "~6.0.24",
@@ -45,6 +46,7 @@
   "scripts": {
     "dev": "expo start",
     "start": "expo start",
+    "dev:client": "expo start --dev-client",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

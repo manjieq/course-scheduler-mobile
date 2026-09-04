@@ -9,6 +9,7 @@
     "development": {
       "extends": "base",
       "distribution": "internal",
+      "developmentClient": true,
       "channel": "development",
       "environment": "development"
     },
