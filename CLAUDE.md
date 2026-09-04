@@ -100,6 +100,29 @@ deletes or restructures it; this is a brand-new, separate project by design
   old repo's workflow — this repo has its own GitHub remote, separate
   from `ClaudeCodeTest`'s.
 
+## Running the app on-device (current workflow)
+
+The user tests on a real Android phone via an installed APK, not Expo Go —
+don't assume Expo Go when suggesting how to see a change. As of the
+`expo-dev-client` addition (post-Phase-7), that APK is a **dev-client**
+build (`eas.json`'s `development` profile has `"developmentClient": true`),
+not a standalone build:
+
+- Day-to-day: run `pnpm dev:client` (`expo start --dev-client`) from
+  `apps/mobile`, open the already-installed dev-client app on the phone
+  (same Wi-Fi as the computer), reload. Plain JS/TS changes show up live —
+  no rebuild needed.
+- A new `eas build --platform android --profile development` (and
+  reinstalling the resulting APK) is only needed again for a native change:
+  a new Expo package with native code, a permission, or other native-level
+  `app.json` config.
+- There is still no `expo-updates`/OTA configured — nothing pushes updates
+  to the installed app on its own; the dev-client connection above is what
+  makes iteration fast, not automatic updating.
+- If this workflow changes again (a new build profile, switching back to
+  Expo Go, adding `expo-updates`, etc.), update this section — a future
+  session has no way to know how the app is currently being run otherwise.
+
 ## Phase plan (agreed)
 
 1. **Scaffold** — monorepo, Expo Router shell (incl. onboarding route),
